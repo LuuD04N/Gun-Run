@@ -1,12 +1,12 @@
 import pygame
 import os
 import random
-
+import csv
 
 pygame.init()
 
 
-SCREEN_WIDTH = 1000
+SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -17,7 +17,12 @@ clock = pygame.time.Clock()
 FPS = 60
 
 GRAVITY = 0.75
-TILE_SIZE = 40
+ROWS = 16
+COLS = 150
+TILE_SIZE = SCREEN_HEIGHT // ROWS
+TILE_TYPES = 91
+level = 0
+
 
 moving_left = False
 moving_right = False
@@ -27,13 +32,18 @@ shoot = False
 bullet_img_ori = pygame.image.load('assets\\Player\\Bullet\\0.png').convert_alpha()
 bullet_img = pygame.transform.scale(bullet_img_ori, (bullet_img_ori.get_width() * 2, bullet_img_ori.get_height() * 2))
 
+#store tiles in a list
+img_list = []
+for x in range(TILE_TYPES):
+	img = pygame.image.load(f'assets/Tilemap/{x}.png')
+	img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+	img_list.append(img)
+
 BG = (0, 0, 0)
 RED = (255, 0, 0)
 
 def draw_bg():
 	screen.fill(BG)
-	pygame.draw.line(screen, RED, (0, 300), (SCREEN_WIDTH, 300))
-
 
 
 class Characters(pygame.sprite.Sprite):
@@ -83,6 +93,8 @@ class Characters(pygame.sprite.Sprite):
 		self.image = self.animation_list[self.action][self.frame_index]
 		self.rect = self.image.get_rect()
 		self.rect.center = (x, y)
+		self.width = self.image.get_width()
+		self.height = self.image.get_height()
 
 	def update(self):
 		self.update_animation()
@@ -118,10 +130,23 @@ class Characters(pygame.sprite.Sprite):
 			self.vel_y
 		dy += self.vel_y
 
-		#Kiểm tra va chạm với sàn <va chạm dọc>
-		if self.rect.bottom + dy > 300:
-			dy = 300 - self.rect.bottom
-			self.in_air = False
+		#Check va cham
+		for tile in world.obstacle_list:
+			#check va cham theo x
+			if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.width, self.height):
+				dx = 0
+			#check va cham theo y	
+			if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
+				#check if below the ground, i.e jumping
+				if self.vel_y < 0:
+					self.vel_y = 0
+					dy = tile[1].bottom - self.rect.top
+				#check if above the ground, i.e falling
+				elif self.vel_y >= 0:
+					self.vel_y = 0
+					self.in_air = False
+					dy = tile[1].top - self.rect.bottom
+
 
 		#Cập nhật vị trí khung
 		self.rect.x += dx
@@ -218,6 +243,45 @@ class Characters(pygame.sprite.Sprite):
 			self.alive = False
 			self.update_action(3)
 
+class World():
+	def __init__(self):
+		self.obstacle_list = []
+
+	def process_data(self, data):
+		#iterate through each value in level data file
+		for y, row in enumerate(data):
+			for x, tile in enumerate(row):
+				if tile >= 0:
+					img = img_list[tile]
+					img_rect = img.get_rect()
+					img_rect.x = x * TILE_SIZE
+					img_rect.y = y * TILE_SIZE
+					tile_data = (img, img_rect)
+					if tile >= 52 and tile <= 90:
+						self.obstacle_list.append(tile_data)
+
+					elif tile >= 0 and tile <= 22: #trap
+						water = Water(img, x * TILE_SIZE, y * TILE_SIZE)
+						water_group.add(water)
+
+					elif tile >= 25 and tile <= 51:
+						decoration = Decoration(img, x * TILE_SIZE, y * TILE_SIZE)
+						decoration_group.add(decoration)
+
+					elif tile == 23: #create player
+						player = Characters('player', x * TILE_SIZE, y * TILE_SIZE, 3, 5, 20)
+						#create health bar <if want>
+
+					elif tile == 24: #create enemy
+						enemy = Characters('enemy', x * TILE_SIZE, y * TILE_SIZE, 3, 2, 20)
+						enemy_group.add(enemy)
+		return player
+
+	def draw(self): 
+		for tile in self.obstacle_list:
+			screen.blit(tile[0], tile[1])
+
+
 class Bullet(pygame.sprite.Sprite):
 	def __init__(self, x, y, direction):
 		pygame.sprite.Sprite.__init__(self)
@@ -233,6 +297,12 @@ class Bullet(pygame.sprite.Sprite):
 		#check if bullet has gone off screen 
 		if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
 			self.kill()
+
+		#check for collision with level
+		for tile in world.obstacle_list:
+			if tile[1].colliderect(self.rect):
+				self.kill()
+
 		#check collision with characters
 		if pygame.sprite.spritecollide(player, bullet_group, False):
 			if player.alive:
@@ -245,27 +315,53 @@ class Bullet(pygame.sprite.Sprite):
 				print('enemy: ' + str(enemy.health))
 				self.kill()
 
+class Decoration(pygame.sprite.Sprite):
+	def __init__(self, img, x, y):
+		pygame.sprite.Sprite.__init__(self)
+		self.image = img
+		self.rect = self.image.get_rect()
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_TYPES - self.image.get_height()))
+
+class Water(pygame.sprite.Sprite):
+	def __init__(self, img, x, y):
+		pygame.sprite.Sprite.__init__(self)
+		self.image = img
+		self.rect = self.image.get_rect()
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_TYPES - self.image.get_height()))
+
 #create sprite groups
 bullet_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
-
-player = Characters('player', 200, 200, 3, 5, 20)
-enemy = Characters('enemy', 400, 200, 3, 2, 20)
-# enemy1 = Characters('enemy', 500, 200, 3, 2, 20)
-# enemy2 = Characters('enemy', 700, 200, 3, 2, 20)
-
-enemy_group.add(enemy)
-# enemy_group.add(enemy1)
-# enemy_group.add(enemy2)
+decoration_group = pygame.sprite.Group()
+water_group = pygame.sprite.Group()
 
 
 
+#create empty tile list 
+world_data = []
+for row in range(ROWS):
+	r = [-1] * COLS
+	world_data.append(r)
+
+#load in level data and create world
+with open(f'level{level}_data.csv', newline = '') as csvfile:
+	reader = csv.reader(csvfile, delimiter= ',')
+	for x, row in enumerate(reader):
+		for y, tile in enumerate(row):
+			world_data[x][y] = int(tile)
+world = World()
+player = world.process_data(world_data)
+
+#loop game
 run = True
 while run:
 
 	clock.tick(FPS)
 
+	#update background
 	draw_bg()
+	#draw world map
+	world.draw()
 
 	player.update()
 	player.draw()
@@ -277,8 +373,12 @@ while run:
 
 	#update and draw groups
 	bullet_group.update()
-	bullet_group.draw(screen)
+	decoration_group.update()
+	water_group.update()
 
+	bullet_group.draw(screen)
+	decoration_group.draw(screen)
+	water_group.draw(screen)
 
 	#Cập nhật hành động của nhân vật
 	if player.alive:
@@ -286,7 +386,7 @@ while run:
 		if shoot:
 			player.shoot()
 		if player.in_air:
-			player.update_action(2)#2: jump
+			player.update_action(2)#2: jump+
 		elif moving_left or moving_right:
 			player.update_action(1)#1: run
 		else:

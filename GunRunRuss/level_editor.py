@@ -22,7 +22,7 @@ pygame.display.set_caption('Level Editor')
 ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 20
+TILE_TYPES = 91
 level = 0
 current_tile = 0
 scroll_left = False
@@ -32,13 +32,13 @@ scroll_speed = 1
 
 #store tiles in a list
 img_list = []
-for x in range(1, TILE_TYPES + 1):
-	img = pygame.image.load(f'assets/Tilemap/Tile_{x}.png').convert_alpha()
+for x in range(TILE_TYPES):
+	img = pygame.image.load(f'assets/Tilemap/{x}.png').convert_alpha()
 	img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
 	img_list.append(img)
 
-save_img = pygame.image.load('assets/Background/Green.png').convert_alpha()
-load_img = pygame.image.load('assets/Background/Pink.png').convert_alpha()
+save_img = pygame.image.load('assets/Player/john_static.png').convert_alpha()
+load_img = pygame.image.load('assets/Enemy/grunt.png').convert_alpha()
 
 
 #define colours
@@ -111,10 +111,10 @@ button_list = []
 button_col = 0
 button_row = 0
 for i in range(len(img_list)):
-	tile_button = button.Button(SCREEN_WIDTH + (75 * button_col) + 50, 75 * button_row + 50, img_list[i], 1)
+	tile_button = button.Button(SCREEN_WIDTH + (40 * button_col) + 20, 40 * button_row + 20, img_list[i], 1)
 	button_list.append(tile_button)
 	button_col += 1
-	if button_col == 3:
+	if button_col == 6:
 		button_row += 1
 		button_col = 0
 
@@ -139,9 +139,10 @@ while run:
 			for row in world_data:
 				writer.writerow(row)
 		#alternative pickle method
-		#pickle_out = open(f'level{level}_data', 'wb')
-		#pickle.dump(world_data, pickle_out)
-		#pickle_out.close()
+		pickle_out = open(f'level{level}_data', 'wb')
+		pickle.dump(world_data, pickle_out)
+		pickle_out.close()
+		
 	if load_button.draw(screen):
 		#load in level data
 		#reset scroll back to the start of the level
@@ -152,9 +153,9 @@ while run:
 				for y, tile in enumerate(row):
 					world_data[x][y] = int(tile)
 		#alternative pickle method
-		#world_data = []
-		#pickle_in = open(f'level{level}_data', 'rb')
-		#world_data = pickle.load(pickle_in)
+		world_data = []
+		pickle_in = open(f'level{level}_data', 'rb')
+		world_data = pickle.load(pickle_in)
 				
 
 	#draw tile panel and tiles
