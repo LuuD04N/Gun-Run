@@ -22,7 +22,7 @@ pygame.display.set_caption('Level Editor')
 ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 91
+TILE_TYPES = 31
 level = 0
 current_tile = 0
 scroll_left = False
@@ -30,6 +30,12 @@ scroll_right = False
 scroll = 0
 scroll_speed = 1
 
+
+#load images
+pine1_img = pygame.image.load('assets/Background/4.png').convert_alpha()
+pine2_img = pygame.image.load('assets/Background/3.png').convert_alpha()
+mountain_img = pygame.image.load('assets/Background/2.png').convert_alpha()
+sky_img = pygame.image.load('assets/Background/1.png').convert_alpha()
 #store tiles in a list
 img_list = []
 for x in range(TILE_TYPES):
@@ -42,7 +48,7 @@ load_img = pygame.image.load('assets/Enemy/grunt.png').convert_alpha()
 
 
 #define colours
-GREEN = (0, 100, 0)
+GREEN = (144, 201, 120)
 WHITE = (255, 255, 255)
 RED = (200, 25, 25)
 
@@ -66,23 +72,15 @@ def draw_text(text, font, text_col, x, y):
 	screen.blit(img, (x, y))
 
 
-#load images
-bg1_ori = pygame.image.load('assets/Background/1.png').convert_alpha()
-bg1 = pygame.transform.scale(bg1_ori, (bg1_ori.get_width(), bg1_ori.get_height() * 2))
-bg2 = pygame.image.load('assets/Background/2.png').convert_alpha()
-bg3 = pygame.image.load('assets/Background/3.png').convert_alpha()
-bg4 = pygame.image.load('assets/Background/4.png').convert_alpha()
-bg5 = pygame.image.load('assets/Background/5.png').convert_alpha()
 #create function for drawing background
 def draw_bg():
 	screen.fill(GREEN)
-	width = bg1.get_width()
-	for x in range(5):
-		screen.blit(bg1, ((x * width) - scroll * 0.5, 0))
-		screen.blit(bg2, ((x * width) - scroll * 0.6, SCREEN_HEIGHT - bg2.get_height() - 65))
-		screen.blit(bg3, ((x * width) - scroll * 0.7, SCREEN_HEIGHT - bg3.get_height() - 70))
-		screen.blit(bg4, ((x * width) - scroll * 0.8, SCREEN_HEIGHT - bg4.get_height() - 65))
-		screen.blit(bg5, ((x * width) - scroll * 0.9, SCREEN_HEIGHT - bg5.get_height() - 65))
+	width = sky_img.get_width()
+	for x in range(4):
+		screen.blit(sky_img, ((x * width) - scroll * 0.5, 0))
+		screen.blit(mountain_img, ((x * width) - scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 300))
+		screen.blit(pine1_img, ((x * width) - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 150))
+		screen.blit(pine2_img, ((x * width) - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height()))
 
 #draw grid
 def draw_grid():
@@ -111,10 +109,10 @@ button_list = []
 button_col = 0
 button_row = 0
 for i in range(len(img_list)):
-	tile_button = button.Button(SCREEN_WIDTH + (40 * button_col) + 20, 40 * button_row + 20, img_list[i], 1)
+	tile_button = button.Button(SCREEN_WIDTH + (50 * button_col) + 50, 50 * button_row + 50, img_list[i], 1)
 	button_list.append(tile_button)
 	button_col += 1
-	if button_col == 6:
+	if button_col == 3:
 		button_row += 1
 		button_col = 0
 
@@ -139,10 +137,9 @@ while run:
 			for row in world_data:
 				writer.writerow(row)
 		#alternative pickle method
-		pickle_out = open(f'level{level}_data', 'wb')
-		pickle.dump(world_data, pickle_out)
-		pickle_out.close()
-		
+		#pickle_out = open(f'level{level}_data', 'wb')
+		#pickle.dump(world_data, pickle_out)
+		#pickle_out.close()
 	if load_button.draw(screen):
 		#load in level data
 		#reset scroll back to the start of the level
@@ -153,9 +150,9 @@ while run:
 				for y, tile in enumerate(row):
 					world_data[x][y] = int(tile)
 		#alternative pickle method
-		world_data = []
-		pickle_in = open(f'level{level}_data', 'rb')
-		world_data = pickle.load(pickle_in)
+		#world_data = []
+		#pickle_in = open(f'level{level}_data', 'rb')
+		#world_data = pickle.load(pickle_in)
 				
 
 	#draw tile panel and tiles
