@@ -22,7 +22,7 @@ SCROLL_THRESH = 200
 ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 31
+TILE_TYPES = 37
 screen_scroll = 0
 bg_scroll = 0
 level = 0
@@ -311,17 +311,17 @@ class World():
 					img_rect.x = x * TILE_SIZE
 					img_rect.y = y * TILE_SIZE
 					tile_data = (img, img_rect)
-					if tile == 0:
+					if tile >= 0 and tile <= 19:
 						self.obstacle_list.append(tile_data)
-					elif tile >= 1 and tile <= 10:
-						water = Water(img, x * TILE_SIZE, y * TILE_SIZE)
-						water_group.add(water)
-					elif tile >= 11 and tile <= 22:
+					# elif tile >= 1 and tile <= 10:
+					# 	water = Water(img, x * TILE_SIZE, y * TILE_SIZE)
+					# 	water_group.add(water)
+					elif tile >= 20 and tile <= 34:
 						decoration = Decoration(img, x * TILE_SIZE, y * TILE_SIZE)
 						decoration_group.add(decoration)
-					elif tile == 23:#create player
+					elif tile == 36:#create player
 						player = Characters('Player', x * TILE_SIZE, y * TILE_SIZE, 1.65, 5)
-					elif tile == 24:#create enemies
+					elif tile == 35:#create enemies
 						enemy = Characters('Enemy', x * TILE_SIZE, y * TILE_SIZE, 1.65, 2)
 						enemy_group.add(enemy)
 
