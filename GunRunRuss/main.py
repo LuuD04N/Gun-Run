@@ -209,6 +209,10 @@ class Characters(pygame.sprite.Sprite):
 		if self.char_type == 'Player':
 			if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
 				dx = 0
+    
+		#check for collision with spike
+		if pygame.sprite.spritecollide(self, spike_group, False):
+			self.health = 0
 
 		#update rectangle position
 		self.rect.x += dx
@@ -328,9 +332,9 @@ class World():
 					tile_data = (img, img_rect)
 					if tile >= 0 and tile <= 19:
 						self.obstacle_list.append(tile_data)
-					# elif tile >= 1 and tile <= 10:
-					# 	water = Water(img, x * TILE_SIZE, y * TILE_SIZE)
-					# 	water_group.add(water)
+					elif tile ==46:
+						spike = Spike(img, x * TILE_SIZE, y * TILE_SIZE)
+						spike_group.add(spike)
 					elif tile >= 20 and tile <= 34 or tile >= 37 and tile <= 44:
 						decoration = Decoration(img, x * TILE_SIZE, y * TILE_SIZE)
 						decoration_group.add(decoration)
@@ -404,7 +408,7 @@ class HealthBar():
 		pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
 		pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
   
-class Water(pygame.sprite.Sprite):
+class Spike(pygame.sprite.Sprite):
 	def __init__(self, img, x, y):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = img
@@ -449,7 +453,7 @@ class Bullet(pygame.sprite.Sprite):
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 decoration_group = pygame.sprite.Group()
-water_group = pygame.sprite.Group()
+spike_group = pygame.sprite.Group()
 item_box_group = pygame.sprite.Group()
 
 
@@ -493,12 +497,12 @@ while run:
 	#update and draw groups
 	bullet_group.update()
 	decoration_group.update()
-	water_group.update()
+	spike_group.update()
 	item_box_group.update()	
  
 	bullet_group.draw(screen)
 	decoration_group.draw(screen)
-	water_group.draw(screen)
+	spike_group.draw(screen)
 	item_box_group.draw(screen)
 
 	#update player actions
