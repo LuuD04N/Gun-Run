@@ -2,6 +2,12 @@ import pygame
 import os
 import random
 import csv
+import os
+
+print("Path of current directory:", os.getcwd())
+# change current directory
+os.chdir('D:\GitHun\Gun-Run\GunRunRuss')
+print("Path of new current directory:", os.getcwd())
 
 pygame.init()
 
@@ -22,7 +28,7 @@ SCROLL_THRESH = 200
 ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 37
+TILE_TYPES = 48
 screen_scroll = 0
 bg_scroll = 0
 level = 0
@@ -34,6 +40,13 @@ shoot = False
 grenade = False
 grenade_thrown = False
 
+#pick up boxes
+health_box_img = pygame.image.load('assets\Tilemap/45.png').convert_alpha()
+power_box_img = pygame.image.load('assets\Tilemap/47.png').convert_alpha()
+item_boxes = {
+	'Health'	: health_box_img,
+	'Powerup'	: power_box_img
+}
 
 #load background images 
 bg6_img_orig = pygame.image.load('assets/Background/6.png').convert_alpha()
@@ -220,6 +233,8 @@ class Characters(pygame.sprite.Sprite):
 
 
 	def ai(self):
+    
+
 		if self.alive and player.alive:
 			if self.idling == False and random.randint(1, 200) == 1:
 				self.update_action(0)#0: idle
@@ -243,7 +258,7 @@ class Characters(pygame.sprite.Sprite):
 					self.move_counter += 1
 					#update ai vision as the enemy moves
 					self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
-
+		
 					if self.move_counter > TILE_SIZE:
 						self.direction *= -1
 						self.move_counter *= -1
@@ -316,16 +331,22 @@ class World():
 					# elif tile >= 1 and tile <= 10:
 					# 	water = Water(img, x * TILE_SIZE, y * TILE_SIZE)
 					# 	water_group.add(water)
-					elif tile >= 20 and tile <= 34:
+					elif tile >= 20 and tile <= 34 or tile >= 37 and tile <= 44:
 						decoration = Decoration(img, x * TILE_SIZE, y * TILE_SIZE)
 						decoration_group.add(decoration)
 					elif tile == 36:#create player
 						player = Characters('Player', x * TILE_SIZE, y * TILE_SIZE, 1.65, 5)
+						health_bar = HealthBar(10, 10, player.health, player.health)
 					elif tile == 35:#create enemies
 						enemy = Characters('Enemy', x * TILE_SIZE, y * TILE_SIZE, 1.65, 2)
 						enemy_group.add(enemy)
-
-		return player
+					elif tile == 47:#create ammo box
+						item_box = ItemBox('Powerup', x * TILE_SIZE, y * TILE_SIZE)
+						item_box_group.add(item_box)
+					elif tile == 45:#create health box
+						item_box = ItemBox('Health', x * TILE_SIZE, y * TILE_SIZE)
+						item_box_group.add(item_box)
+		return player, health_bar
 
 
 	def draw(self):
@@ -344,7 +365,45 @@ class Decoration(pygame.sprite.Sprite):
 	def update(self):
 		self.rect.x += screen_scroll
 
+class ItemBox(pygame.sprite.Sprite):
+	def __init__(self, item_type, x, y):
+		pygame.sprite.Sprite.__init__(self)
+		self.item_type = item_type
+		self.image = item_boxes[self.item_type]
+		self.rect = self.image.get_rect()
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+  
+	def update(self):
+		#scroll
+		self.rect.x += screen_scroll
+		#check if the player has picked up the box
+		if pygame.sprite.collide_rect(self, player):
+			#check what kind of box it was
+			if self.item_type == 'Health':
+				player.health += 25
+				if player.health > player.max_health:
+					player.health = player.max_health
+			elif self.item_type == 'Ammo':
+				player.ammo += 15
+			#delete the item box
+			self.kill()
 
+class HealthBar():
+	def __init__(self, x, y, health, max_health):
+		self.x = x
+		self.y = y
+		self.health = health
+		self.max_health = max_health
+
+	def draw(self, health):
+		#update with new health
+		self.health = health
+		#calculate health ratio
+		ratio = self.health / self.max_health
+		pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
+		pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
+		pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
+  
 class Water(pygame.sprite.Sprite):
 	def __init__(self, img, x, y):
 		pygame.sprite.Sprite.__init__(self)
@@ -391,7 +450,7 @@ enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 decoration_group = pygame.sprite.Group()
 water_group = pygame.sprite.Group()
-
+item_box_group = pygame.sprite.Group()
 
 
 
@@ -407,7 +466,8 @@ with open(f'level{level}_data.csv', newline='') as csvfile:
 		for y, tile in enumerate(row):
 			world_data[x][y] = int(tile)
 world = World()
-player = world.process_data(world_data)
+player, health_bar = world.process_data(world_data)
+
 
 
 
@@ -434,10 +494,12 @@ while run:
 	bullet_group.update()
 	decoration_group.update()
 	water_group.update()
-	
+	item_box_group.update()	
+ 
 	bullet_group.draw(screen)
 	decoration_group.draw(screen)
 	water_group.draw(screen)
+	item_box_group.draw(screen)
 
 	#update player actions
 	if player.alive:
@@ -452,6 +514,7 @@ while run:
 			player.update_action(0)#0: idle
 		screen_scroll = player.move(moving_left, moving_right)
 		bg_scroll -= screen_scroll
+		health_bar.draw(player.health)
 
 	for event in pygame.event.get():
 		#quit game
