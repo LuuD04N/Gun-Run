@@ -2,6 +2,7 @@ import pygame
 import os
 import random
 import csv
+import time
 
 pygame.init()
 
@@ -10,7 +11,7 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption('Shooter')
+pygame.display.set_caption('Gun&Run')
 
 #set framerate
 clock = pygame.time.Clock()
@@ -22,7 +23,8 @@ SCROLL_THRESH = 200
 ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 37
+TILE_TYPES = 42
+scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
 level = 0
@@ -31,9 +33,21 @@ level = 0
 moving_left = False
 moving_right = False
 shoot = False
-grenade = False
-grenade_thrown = False
 
+#pick up boxes
+health_box_img = pygame.image.load('assets/Tilemap/39.png').convert_alpha()
+power_box_img = pygame.image.load('assets/Tilemap/41.png').convert_alpha()
+item_boxes = {
+	'Health'	: health_box_img,
+	'PowerUp'	: power_box_img
+}
+
+#define font
+font = pygame.font.SysFont('Futura', 30)
+
+def draw_text(text, font, text_col, x, y):
+	img = font.render(text, True, text_col)
+	screen.blit(img, (x, y))
 
 #load background images 
 bg6_img_orig = pygame.image.load('assets/Background/6.png').convert_alpha()
@@ -70,14 +84,6 @@ WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 
-#define font
-font = pygame.font.SysFont('Futura', 30)
-
-def draw_text(text, font, text_col, x, y):
-	img = font.render(text, True, text_col)
-	screen.blit(img, (x, y))
-
-
 def draw_bg():
 	screen.fill(BG)
 	width = bg1_img.get_width()
@@ -110,12 +116,14 @@ class Characters(pygame.sprite.Sprite):
 		self.update_time = pygame.time.get_ticks()
 		#ai specific variables
 		self.move_counter = 0
-		self.vision = pygame.Rect(0, 0, 150, 20)
+		self.vision = pygame.Rect(0, 0, 150 * scale_tamban, 20)
 		self.idling = False
 		self.idling_counter = 0
+		#update power
+		self.power_up_timer = 0
 		
 		#load all images for the players
-		animation_types = ['Idle', 'Run', 'Jump', 'Death']
+		animation_types = ['Idle', 'Run', 'Jump', 'Death', 'ShootIdle', 'ShootRun']
 		for animation in animation_types:
 			#reset temporary list of images
 			temp_list = []
@@ -140,6 +148,11 @@ class Characters(pygame.sprite.Sprite):
 		#update cooldown
 		if self.shoot_cooldown > 0:
 			self.shoot_cooldown -= 1
+		
+		if self.power_up_timer > 0:
+			self.power_up_timer -= 1
+		else:
+			self.power_up_timer = 0
 
 
 	def move(self, moving_left, moving_right):
@@ -178,7 +191,7 @@ class Characters(pygame.sprite.Sprite):
 				#if the ai has hit a wall then make it turn around
 				if self.char_type == 'Enemy':
 					self.direction *= -1
-					self.move_counter = 0
+					self.move_counter += 1 #move_counter = 0
 			#check for collision in the y direction
 			if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
 				#check if below the ground, i.e. jumping
@@ -197,6 +210,10 @@ class Characters(pygame.sprite.Sprite):
 			if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
 				dx = 0
 
+		#check for collision with spike
+		if pygame.sprite.spritecollide(self, spike_group, False):
+			self.health = 0
+
 		#update rectangle position
 		self.rect.x += dx
 		self.rect.y += dy
@@ -207,6 +224,11 @@ class Characters(pygame.sprite.Sprite):
 				or (self.rect.left < SCROLL_THRESH and bg_scroll > abs(dx)):
 				self.rect.x -= dx
 				screen_scroll = -dx
+		#check collision with boss
+		for boss in enemy_group:
+			if boss.char_type == 'Boss' and self.char_type == 'Player':
+				if self.rect.colliderect(boss.rect):
+					self.health -= 0.5  # trừ nửa máu
 
 		return screen_scroll
 
@@ -214,10 +236,22 @@ class Characters(pygame.sprite.Sprite):
 
 	def shoot(self):
 		if self.shoot_cooldown == 0:
-			self.shoot_cooldown = 20
-			bullet = Bullet(self.rect.centerx + (0.75 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
+			if self.power_up_timer > 0:
+				self.shoot_cooldown = 15
+			else:
+				self.shoot_cooldown = 30
+			if self.char_type == "Player":
+				bullet = PlayerBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
+			else:
+				bullet = EnemyBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
+		# if self.shoot_cooldown == 0:
+		# 	self.shoot_cooldown = 30
+		# 	if self.char_type == "Player":
+		# 		bullet = PlayerBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
+		# 	else:
+		# 		bullet = EnemyBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
+			
 			bullet_group.add(bullet)
-
 
 	def ai(self):
 		if self.alive and player.alive:
@@ -225,12 +259,13 @@ class Characters(pygame.sprite.Sprite):
 				self.update_action(0)#0: idle
 				self.idling = True
 				self.idling_counter = 50
+				
 			#check if the ai in near the player
 			if self.vision.colliderect(player.rect):
 				#stop running and face the player
-				self.update_action(0)#0: idle
-				#shoot
 				self.shoot()
+				self.update_action(4)
+				
 			else:
 				if self.idling == False:
 					if self.direction == 1:
@@ -242,8 +277,9 @@ class Characters(pygame.sprite.Sprite):
 					self.update_action(1)#1: run
 					self.move_counter += 1
 					#update ai vision as the enemy moves
-					self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
-
+					self.vision.center = (self.rect.centerx + 75 * scale_tamban * self.direction, self.rect.centery)
+					# pygame.draw.rect(screen, RED, self.vision)
+					
 					if self.move_counter > TILE_SIZE:
 						self.direction *= -1
 						self.move_counter *= -1
@@ -311,21 +347,39 @@ class World():
 					img_rect.x = x * TILE_SIZE
 					img_rect.y = y * TILE_SIZE
 					tile_data = (img, img_rect)
-					if tile >= 0 and tile <= 19:
+					if tile >= 0 and tile <= 20:
 						self.obstacle_list.append(tile_data)
-					# elif tile >= 1 and tile <= 10:
-					# 	water = Water(img, x * TILE_SIZE, y * TILE_SIZE)
-					# 	water_group.add(water)
-					elif tile >= 20 and tile <= 34:
+
+					elif tile >= 24 and tile <= 38:
 						decoration = Decoration(img, x * TILE_SIZE, y * TILE_SIZE)
 						decoration_group.add(decoration)
-					elif tile == 36:#create player
+
+					elif tile ==40: #trap
+						spike = Spike(img, x * TILE_SIZE, y * TILE_SIZE)
+						spike_group.add(spike)
+
+					elif tile == 41:
+						item_box = ItemBox('PowerUp', x * TILE_SIZE, y * TILE_SIZE)
+						item_box_group.add(item_box)
+
+					elif tile == 39:#create health box
+						item_box = ItemBox('Health', x * TILE_SIZE, y * TILE_SIZE)
+						item_box_group.add(item_box)
+
+					elif tile == 23:#create player
 						player = Characters('Player', x * TILE_SIZE, y * TILE_SIZE, 1.65, 5)
-					elif tile == 35:#create enemies
+						health_bar = HealthBar(10, 10, player.health, player.health)
+
+					elif tile == 22:#create enemies
 						enemy = Characters('Enemy', x * TILE_SIZE, y * TILE_SIZE, 1.65, 2)
 						enemy_group.add(enemy)
+					
+					elif tile == 21:
+						boss = Boss(x * TILE_SIZE, y * TILE_SIZE, 2, 2)
+						enemy_group.add(boss)
 
-		return player
+
+		return player, health_bar
 
 
 	def draw(self):
@@ -333,6 +387,108 @@ class World():
 			tile[1][0] += screen_scroll
 			screen.blit(tile[0], tile[1])
 
+class ItemBox(pygame.sprite.Sprite):
+	def __init__(self, item_type, x, y):
+		pygame.sprite.Sprite.__init__(self)
+		self.item_type = item_type
+		self.image = item_boxes[self.item_type]
+		self.rect = self.image.get_rect()
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+  
+	def update(self):
+		#scroll
+		self.rect.x += screen_scroll
+		#check if the player has picked up the box
+		if pygame.sprite.collide_rect(self, player):
+			#check what kind of box it was
+			if self.item_type == 'Health':
+				player.health += 25
+				if player.health > player.max_health:
+					player.health = player.max_health
+			elif self.item_type == 'PowerUp':
+				player.power_up_timer = 300 #300 khung hinh = 5 giay
+			
+			#delete the item box
+			self.kill()
+
+class HealthBar():
+	def __init__(self, x, y, health, max_health):
+		self.x = x
+		self.y = y
+		self.health = health
+		self.max_health = max_health
+
+	def draw(self, health):
+		#update with new health
+		self.health = health
+		#calculate health ratio
+		ratio = self.health / self.max_health
+		pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
+		pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
+		pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
+  
+class Spike(pygame.sprite.Sprite):
+	def __init__(self, img, x, y):
+		pygame.sprite.Sprite.__init__(self)
+		self.image = img
+		self.rect = self.image.get_rect()
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()) + 15)
+
+	def update(self):
+		self.rect.x += screen_scroll
+
+class Boss(Characters):
+	def __init__(self, x, y, scale, speed):
+		super().__init__('Boss', x, y, scale, speed)
+		self.health = 1000
+		self.move_direction = 1  # 1 xuống, -1 lên
+		self.shoot_cooldown = 0
+		self.bullet_cooldown = 60
+		
+
+	def move(self):
+		dx = 0
+		dy = self.speed * self.move_direction
+
+		# Kiểm tra va chạm với các vật cản
+		for tile in world.obstacle_list:
+			if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
+			# Nếu va chạm, đổi chiều di chuyển
+				self.move_direction *= -1
+				dy = 0
+				break
+
+        # Cập nhật vị trí mới
+		self.rect.y += dy
+	
+	def shoot(self):
+		if self.shoot_cooldown == 0:
+			self.shoot_cooldown = self.bullet_cooldown  # cooldown thấp, bắn nhanh
+			if random.randint(1,2) == 1: 
+				self.direction *= -1
+			bullet = BossBullet(self.rect.centerx + (0.65 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
+			bullet_group.add(bullet)
+
+	def ai(self):
+		if player.alive and self.alive:
+			if self.health > 700:
+				self.move()
+				self.update_action(1)  # 1: run
+				self.rect.x += screen_scroll
+				self.shoot()
+			else:
+				self.bullet_cooldown = 10
+				self.speed = 3
+				self.move()
+				self.update_action(4)
+				self.rect.x += screen_scroll
+				self.shoot()
+
+		if self.shoot_cooldown > 0:
+			self.shoot_cooldown -= 1  # Giảm shoot_cooldown xuống sau mỗi khung hình
+
+		if self.health <= 0:
+			self.update_action(3)
 
 class Decoration(pygame.sprite.Sprite):
 	def __init__(self, img, x, y):
@@ -386,11 +542,31 @@ class Bullet(pygame.sprite.Sprite):
 					enemy.health -= 25
 					self.kill()
 
+class PlayerBullet(Bullet):
+    def __init__(self, x, y, direction):
+        super().__init__(x, y, direction)
+        self.speed = 10  # Tốc độ đạn của player
+        self.image = pygame.transform.scale2x(pygame.image.load('assets/Player/Bullet/0.png')).convert_alpha()
+
+class EnemyBullet(Bullet):
+    def __init__(self, x, y, direction):
+        super().__init__(x, y, direction)
+        self.speed = 8  # Tốc độ đạn của enemy
+        self.image = pygame.transform.scale2x(pygame.image.load('assets/Enemy/Bullet/0.png')).convert_alpha()
+
+class BossBullet(Bullet):
+    def __init__(self, x, y, direction):
+        super().__init__(x, y, direction)
+        self.speed = 8  # Tốc độ đạn của enemy
+        image = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/3.png')).convert_alpha()
+        self.image = pygame.transform.scale(image, (image.get_width() * 0.55, image.get_height() * 0.55))
+
 #create sprite groups
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 decoration_group = pygame.sprite.Group()
-water_group = pygame.sprite.Group()
+spike_group = pygame.sprite.Group()
+item_box_group = pygame.sprite.Group()
 
 
 
@@ -407,15 +583,14 @@ with open(f'level{level}_data.csv', newline='') as csvfile:
 		for y, tile in enumerate(row):
 			world_data[x][y] = int(tile)
 world = World()
-player = world.process_data(world_data)
+player, health_bar = world.process_data(world_data)
 
 
 
 run = True
 while run:
-
+	
 	clock.tick(FPS)
-
 	#update background
 	draw_bg()
 
@@ -425,26 +600,37 @@ while run:
 	player.update()
 	player.draw()
 
-	for enemy in enemy_group:
-		enemy.ai()
-		enemy.update()
-		enemy.draw()
+	for entity in enemy_group:
+		if entity.char_type == 'Boss':
+			entity.ai()
+			entity.update()
+			entity.draw()
+		else:
+			entity.ai()
+			entity.update()
+			entity.draw()
 
 	#update and draw groups
 	bullet_group.update()
 	decoration_group.update()
-	water_group.update()
-	
+	spike_group.update()
+	item_box_group.update()	
+ 
 	bullet_group.draw(screen)
 	decoration_group.draw(screen)
-	water_group.draw(screen)
+	spike_group.draw(screen)
+	item_box_group.draw(screen)
 
 	#update player actions
 	if player.alive:
 		#shoot bullets
-		if shoot:
+		if shoot and moving_left or shoot and moving_right:
 			player.shoot()
-		if player.in_air:
+			player.update_action(5)
+		elif shoot:
+			player.shoot()
+			player.update_action(4)
+		elif player.in_air:
 			player.update_action(2)#2: jump
 		elif moving_left or moving_right:
 			player.update_action(1)#1: run
@@ -452,6 +638,8 @@ while run:
 			player.update_action(0)#0: idle
 		screen_scroll = player.move(moving_left, moving_right)
 		bg_scroll -= screen_scroll
+		health_bar.draw(player.health)
+
 
 	for event in pygame.event.get():
 		#quit game

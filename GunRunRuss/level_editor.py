@@ -1,7 +1,6 @@
 import pygame
 import button
 import csv
-import pickle
 
 pygame.init()
 
@@ -22,7 +21,7 @@ pygame.display.set_caption('Level Editor')
 ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 37
+TILE_TYPES = 42
 level = 0
 current_tile = 0
 scroll_left = False
@@ -112,7 +111,7 @@ for i in range(len(img_list)):
 	tile_button = button.Button(SCREEN_WIDTH + (50 * button_col) + 50, 50 * button_row + 50, img_list[i], 1)
 	button_list.append(tile_button)
 	button_col += 1
-	if button_col == 3:
+	if button_col == 5:
 		button_row += 1
 		button_col = 0
 
@@ -204,6 +203,8 @@ while run:
 				scroll_right = True
 			if event.key == pygame.K_q:
 				scroll_speed = 5
+			if event.key == pygame.K_ESCAPE:
+				run = False
 
 
 		if event.type == pygame.KEYUP:
