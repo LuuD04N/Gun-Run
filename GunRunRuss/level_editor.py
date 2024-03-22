@@ -21,7 +21,7 @@ pygame.display.set_caption('Level Editor')
 ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 42
+TILE_TYPES = 43
 level = 0
 current_tile = 0
 scroll_left = False
@@ -31,10 +31,24 @@ scroll_speed = 1
 
 
 #load images
-pine1_img = pygame.image.load('assets/Background/4.png').convert_alpha()
-pine2_img = pygame.image.load('assets/Background/3.png').convert_alpha()
-mountain_img = pygame.image.load('assets/Background/2.png').convert_alpha()
-sky_img = pygame.image.load('assets/Background/1.png').convert_alpha()
+bg6_img_orig = pygame.image.load('assets/Background/6.png').convert_alpha()
+bg6_img = pygame.transform.scale(bg6_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+bg5_img_orig = pygame.image.load('assets/Background/5.png').convert_alpha()
+bg5_img = pygame.transform.scale(bg5_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+bg4_img_orig = pygame.image.load('assets/Background/4.png').convert_alpha()
+bg4_img = pygame.transform.scale(bg4_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+bg3_img_orig = pygame.image.load('assets/Background/3.png').convert_alpha()
+bg3_img = pygame.transform.scale(bg3_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+bg2_img_orig = pygame.image.load('assets/Background/2.png').convert_alpha()
+bg2_img = pygame.transform.scale(bg2_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+bg1_img_orig = pygame.image.load('assets/Background/1.png').convert_alpha()
+bg1_img = pygame.transform.scale(bg1_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
 #store tiles in a list
 img_list = []
 for x in range(TILE_TYPES):
@@ -73,13 +87,14 @@ def draw_text(text, font, text_col, x, y):
 
 #create function for drawing background
 def draw_bg():
-	screen.fill(GREEN)
-	width = sky_img.get_width()
-	for x in range(4):
-		screen.blit(sky_img, ((x * width) - scroll * 0.5, 0))
-		screen.blit(mountain_img, ((x * width) - scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 300))
-		screen.blit(pine1_img, ((x * width) - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 150))
-		screen.blit(pine2_img, ((x * width) - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height()))
+	screen.fill((0,0,0))
+	width = bg1_img.get_width()
+	for x in range(5):
+		screen.blit(bg1_img, ((x * width) - scroll * 0.3, 0))
+		screen.blit(bg2_img, ((x * width) - scroll * 0.35, SCREEN_HEIGHT - bg2_img.get_height() - 10))
+		screen.blit(bg3_img, ((x * width) - scroll * 0.4, SCREEN_HEIGHT - bg3_img.get_height() - 10))
+		screen.blit(bg4_img, ((x * width) - scroll * 0.45, SCREEN_HEIGHT - bg4_img.get_height() - 10))
+		screen.blit(bg5_img, ((x * width) - scroll * 0.5, SCREEN_HEIGHT - bg5_img.get_height() - 10))
 
 #draw grid
 def draw_grid():

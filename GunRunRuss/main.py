@@ -2,7 +2,7 @@ import pygame
 import os
 import random
 import csv
-import time
+import button
 
 pygame.init()
 
@@ -12,6 +12,7 @@ SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Gun&Run')
+pygame.display.set_icon(pygame.image.load('assets/icon.ico'))
 
 #set framerate
 clock = pygame.time.Clock()
@@ -23,11 +24,14 @@ SCROLL_THRESH = 200
 ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 42
+TILE_TYPES = 43
+MAX_LEVELS = 5
 scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
 level = 0
+star_game = False
+
 
 #define player action variables
 moving_left = False
@@ -45,9 +49,18 @@ item_boxes = {
 #define font
 font = pygame.font.SysFont('Futura', 30)
 
-def draw_text(text, font, text_col, x, y):
-	img = font.render(text, True, text_col)
-	screen.blit(img, (x, y))
+#buttons images
+start_img_ori = pygame.image.load('assets/Buttons/Play.png').convert_alpha()
+start_img = pygame.transform.scale(start_img_ori, (start_img_ori.get_width() * 5, start_img_ori.get_height() * 4))
+
+exit_img_ori = pygame.image.load('assets/Buttons/Close.png').convert_alpha()
+exit_img = pygame.transform.scale(exit_img_ori, (exit_img_ori.get_width() * 3, exit_img_ori.get_height() * 3))
+
+restart_img_ori = pygame.image.load('assets/Buttons/Restart.png').convert_alpha()
+restart_img = pygame.transform.scale(restart_img_ori, (restart_img_ori.get_width() * 5, restart_img_ori.get_height() * 5))
+
+bg_menu_ori = pygame.image.load('assets/Background/menu_bg.png').convert_alpha()
+bg_menu = pygame.transform.scale(bg_menu_ori, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
 #load background images 
 bg6_img_orig = pygame.image.load('assets/Background/6.png').convert_alpha()
@@ -74,6 +87,7 @@ for x in range(TILE_TYPES):
 	img = pygame.image.load(f'assets/Tilemap/{x}.png')
 	img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
 	img_list.append(img)
+
 #bullet
 bullet_img = pygame.image.load('assets/Player/Bullet/0.png').convert_alpha()
 
@@ -84,7 +98,11 @@ WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 
-def draw_bg():
+def draw_text(text, font, text_col, x, y):
+	img = font.render(text, True, text_col)
+	screen.blit(img, (x, y))
+
+def draw_bg_0():
 	screen.fill(BG)
 	width = bg1_img.get_width()
 	for x in range(5):
@@ -93,6 +111,40 @@ def draw_bg():
 		screen.blit(bg3_img, ((x * width) - bg_scroll * 0.4, SCREEN_HEIGHT - bg3_img.get_height() - 10))
 		screen.blit(bg4_img, ((x * width) - bg_scroll * 0.45, SCREEN_HEIGHT - bg4_img.get_height() - 10))
 		screen.blit(bg5_img, ((x * width) - bg_scroll * 0.5, SCREEN_HEIGHT - bg5_img.get_height() - 10))
+
+def draw_bg_1():
+	screen.fill(BG)
+	width = bg1_img.get_width()
+	for x in range(5):
+		screen.blit(bg1_img, ((x * width) - bg_scroll * 0.3, 0))
+		screen.blit(bg2_img, ((x * width) - bg_scroll * 0.35, SCREEN_HEIGHT - bg2_img.get_height() - 10))
+		screen.blit(bg3_img, ((x * width) - bg_scroll * 0.4, SCREEN_HEIGHT - bg3_img.get_height() - 10))
+
+def draw_bg_2():
+	screen.fill(BG)
+	width = bg1_img.get_width()
+	for x in range(5):
+		screen.blit(bg1_img, ((x * width) - bg_scroll * 0.3, 0))
+		screen.blit(bg2_img, ((x * width) - bg_scroll * 0.35, SCREEN_HEIGHT - bg2_img.get_height() - 10))
+		
+
+
+#function to reset level
+def reset_level():
+	enemy_group.empty()
+	bullet_group.empty()
+	spike_group.empty()
+	item_box_group.empty()
+	decoration_group.empty()
+	exit_group.empty()
+
+	#create empty tile list
+	data = []
+	for row in range(ROWS):
+		r = [-1] * COLS
+		data.append(r)
+
+	return data
 
 
 
@@ -204,6 +256,18 @@ class Characters(pygame.sprite.Sprite):
 					self.in_air = False
 					dy = tile[1].top - self.rect.bottom
 
+		#check for collision with spike
+		if pygame.sprite.spritecollide(self, spike_group, False):
+			self.health = 0
+		
+		#check for collision with exit
+		level_complete = False
+		if pygame.sprite.spritecollide(self, exit_group, False):
+			level_complete = True
+
+		#check if fallen off the map
+		if self.rect.bottom > SCREEN_HEIGHT:
+			self.health = 0
 
 		#check if going off the edges of the screen
 		if self.char_type == 'Player':
@@ -230,7 +294,7 @@ class Characters(pygame.sprite.Sprite):
 				if self.rect.colliderect(boss.rect):
 					self.health -= 0.5  # trừ nửa máu
 
-		return screen_scroll
+		return screen_scroll, level_complete
 
 
 
@@ -354,7 +418,7 @@ class World():
 						decoration = Decoration(img, x * TILE_SIZE, y * TILE_SIZE)
 						decoration_group.add(decoration)
 
-					elif tile ==40: #trap
+					elif tile == 40: #trap
 						spike = Spike(img, x * TILE_SIZE, y * TILE_SIZE)
 						spike_group.add(spike)
 
@@ -377,6 +441,10 @@ class World():
 					elif tile == 21:
 						boss = Boss(x * TILE_SIZE, y * TILE_SIZE, 2, 2)
 						enemy_group.add(boss)
+					
+					elif tile == 42:
+						exit = Exit(img, x * TILE_SIZE, y * TILE_SIZE)
+						exit_group.add(exit)
 
 
 		return player, health_bar
@@ -386,6 +454,16 @@ class World():
 		for tile in self.obstacle_list:
 			tile[1][0] += screen_scroll
 			screen.blit(tile[0], tile[1])
+class Exit(pygame.sprite.Sprite):
+	def __init__(self, img, x, y):
+		pygame.sprite.Sprite.__init__(self)
+		self.image = img
+		self.rect = self.image.get_rect()
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+	
+	def update(self):
+		self.rect.x += screen_scroll
+
 
 class ItemBox(pygame.sprite.Sprite):
 	def __init__(self, item_type, x, y):
@@ -432,7 +510,7 @@ class Spike(pygame.sprite.Sprite):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = img
 		self.rect = self.image.get_rect()
-		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()) + 15)
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()) + 1)
 
 	def update(self):
 		self.rect.x += screen_scroll
@@ -500,17 +578,6 @@ class Decoration(pygame.sprite.Sprite):
 	def update(self):
 		self.rect.x += screen_scroll
 
-
-class Water(pygame.sprite.Sprite):
-	def __init__(self, img, x, y):
-		pygame.sprite.Sprite.__init__(self)
-		self.image = img
-		self.rect = self.image.get_rect()
-		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
-
-	def update(self):
-		self.rect.x += screen_scroll
-
 class Bullet(pygame.sprite.Sprite):
 	def __init__(self, x, y, direction):
 		pygame.sprite.Sprite.__init__(self)
@@ -561,12 +628,18 @@ class BossBullet(Bullet):
         image = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/3.png')).convert_alpha()
         self.image = pygame.transform.scale(image, (image.get_width() * 0.55, image.get_height() * 0.55))
 
+#create buttons
+star_button = button.Button(SCREEN_WIDTH // 2 - 52, SCREEN_HEIGHT // 2 - 100, start_img, 1)
+exit_button = button.Button(SCREEN_WIDTH // 2 - 24, SCREEN_HEIGHT // 2 + 30, exit_img, 1)
+restart_button = button.Button(SCREEN_WIDTH // 2 - 52, SCREEN_HEIGHT // 2 - 100, restart_img, 1)
+		
 #create sprite groups
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 decoration_group = pygame.sprite.Group()
 spike_group = pygame.sprite.Group()
 item_box_group = pygame.sprite.Group()
+exit_group = pygame.sprite.Group()
 
 
 
@@ -591,54 +664,106 @@ run = True
 while run:
 	
 	clock.tick(FPS)
-	#update background
-	draw_bg()
 
-	#draw world map
-	world.draw()
-
-	player.update()
-	player.draw()
-
-	for entity in enemy_group:
-		if entity.char_type == 'Boss':
-			entity.ai()
-			entity.update()
-			entity.draw()
+	if star_game == False:
+		#draw menu
+		screen.blit(bg_menu, (0,0))
+		#add buttons
+		if star_button.draw(screen):
+			star_game = True
+		if exit_button.draw(screen):
+			run = False
+		
+	else:
+		#update background
+		if level == 0:
+			draw_bg_0()
+		elif level == 1:
+			draw_bg_1()
 		else:
-			entity.ai()
-			entity.update()
-			entity.draw()
+			draw_bg_2()
 
-	#update and draw groups
-	bullet_group.update()
-	decoration_group.update()
-	spike_group.update()
-	item_box_group.update()	
- 
-	bullet_group.draw(screen)
-	decoration_group.draw(screen)
-	spike_group.draw(screen)
-	item_box_group.draw(screen)
 
-	#update player actions
-	if player.alive:
-		#shoot bullets
-		if shoot and moving_left or shoot and moving_right:
-			player.shoot()
-			player.update_action(5)
-		elif shoot:
-			player.shoot()
-			player.update_action(4)
-		elif player.in_air:
-			player.update_action(2)#2: jump
-		elif moving_left or moving_right:
-			player.update_action(1)#1: run
-		else:
-			player.update_action(0)#0: idle
-		screen_scroll = player.move(moving_left, moving_right)
-		bg_scroll -= screen_scroll
+		#draw world map
+		world.draw()
+		
+		#draw health bar player
 		health_bar.draw(player.health)
+
+		player.update()
+		player.draw()
+
+		for entity in enemy_group:
+			if entity.char_type == 'Boss':
+				entity.ai()
+				entity.update()
+				entity.draw()
+			else:
+				entity.ai()
+				entity.update()
+				entity.draw()
+
+		#update and draw groups
+		bullet_group.update()
+		decoration_group.update()
+		spike_group.update()
+		item_box_group.update()	
+		exit_group.update()
+	
+		bullet_group.draw(screen)
+		decoration_group.draw(screen)
+		spike_group.draw(screen)
+		item_box_group.draw(screen)
+		exit_group.draw(screen)
+
+		#update player actions
+		if player.alive:
+			#shoot bullets
+			if shoot and moving_left or shoot and moving_right:
+				player.shoot()
+				player.update_action(5)
+			elif shoot:
+				player.shoot()
+				player.update_action(4)
+			elif player.in_air:
+				player.update_action(2)#2: jump
+			elif moving_left or moving_right:
+				player.update_action(1)#1: run
+			else:
+				player.update_action(0)#0: idle
+
+			screen_scroll, level_complete = player.move(moving_left, moving_right)
+			bg_scroll -= screen_scroll
+
+			#check if player has completed the level
+			if level_complete:
+				level += 1
+				bg_scroll = 0
+				world_data = reset_level()
+				if level <= MAX_LEVELS:
+					#load in level data and create world
+					with open(f'level{level}_data.csv', newline='') as csvfile:
+						reader = csv.reader(csvfile, delimiter=',')
+						for x, row in enumerate(reader):
+							for y, tile in enumerate(row):
+								world_data[x][y] = int(tile)
+					world = World()
+					player, health_bar = world.process_data(world_data)
+		else:
+			screen_scroll = 0
+			if restart_button.draw(screen):
+				bg_scroll = 0
+				world_data = reset_level()
+				#load in level data and create world
+				with open(f'level{level}_data.csv', newline='') as csvfile:
+					reader = csv.reader(csvfile, delimiter=',')
+					for x, row in enumerate(reader):
+						for y, tile in enumerate(row):
+							world_data[x][y] = int(tile)
+				world = World()
+				player, health_bar = world.process_data(world_data)
+			elif exit_button.draw(screen):
+				run = False
 
 
 	for event in pygame.event.get():
@@ -657,8 +782,7 @@ while run:
 				player.jump = True
 			if event.key == pygame.K_ESCAPE:
 				run = False
-
-
+				
 		#keyboard button released
 		if event.type == pygame.KEYUP:
 			if event.key == pygame.K_LEFT:
