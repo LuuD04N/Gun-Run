@@ -1,9 +1,11 @@
 import pygame
+from pygame import mixer
 import os
 import random
 import csv
 import button
 
+mixer.init()
 pygame.init()
 
 
@@ -13,6 +15,8 @@ SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Gun&Run')
 pygame.display.set_icon(pygame.image.load('assets/icon.ico'))
+
+
 
 #set framerate
 clock = pygame.time.Clock()
@@ -25,7 +29,7 @@ ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 43
-MAX_LEVELS = 5
+MAX_LEVELS = 3
 scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
@@ -37,6 +41,25 @@ star_game = False
 moving_left = False
 moving_right = False
 shoot = False
+
+#load sounds
+
+pygame.mixer.music.load('assets/audio/level_music.mp3')
+pygame.mixer.music.set_volume(0.2)
+pygame.mixer.music.play(-1, 0.0, 5000)
+
+
+
+jump_fx = pygame.mixer.Sound('assets/audio/sfx/jump.wav')
+jump_fx.set_volume(0.5)
+shoot_fx = pygame.mixer.Sound('assets/audio/sfx/shot.wav')
+shoot_fx.set_volume(0.5)
+health_fx = pygame.mixer.Sound('assets/audio/sfx/health.wav')
+health_fx.set_volume(0.3)
+powerup_fx = pygame.mixer.Sound('assets/audio/sfx/powerup.wav')
+powerup_fx.set_volume(3)
+explode_fx = pygame.mixer.Sound('assets/audio/sfx/explode.wav')
+explode_fx.set_volume(3)
 
 #pick up boxes
 health_box_img = pygame.image.load('assets/Tilemap/39.png').convert_alpha()
@@ -171,6 +194,7 @@ class Characters(pygame.sprite.Sprite):
 		self.vision = pygame.Rect(0, 0, 150 * scale_tamban, 20)
 		self.idling = False
 		self.idling_counter = 0
+		self.check_death = False
 		#update power
 		self.power_up_timer = 0
 		
@@ -245,7 +269,7 @@ class Characters(pygame.sprite.Sprite):
 					self.direction *= -1
 					self.move_counter += 1 #move_counter = 0
 			#check for collision in the y direction
-			if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
+			if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height + 2):
 				#check if below the ground, i.e. jumping
 				if self.vel_y < 0:
 					self.vel_y = 0
@@ -305,17 +329,12 @@ class Characters(pygame.sprite.Sprite):
 			else:
 				self.shoot_cooldown = 30
 			if self.char_type == "Player":
-				bullet = PlayerBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
+				bullet = PlayerBullet(self.rect.centerx + (0.75 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
 			else:
-				bullet = EnemyBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
-		# if self.shoot_cooldown == 0:
-		# 	self.shoot_cooldown = 30
-		# 	if self.char_type == "Player":
-		# 		bullet = PlayerBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
-		# 	else:
-		# 		bullet = EnemyBullet(self.rect.centerx + (0.73 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
+				bullet = EnemyBullet(self.rect.centerx + (0.75 * self.rect.size[0] * self.direction), self.rect.centery + 5, self.direction)
 			
 			bullet_group.add(bullet)
+			shoot_fx.play()
 
 	def ai(self):
 		if self.alive and player.alive:
@@ -390,6 +409,11 @@ class Characters(pygame.sprite.Sprite):
 			self.speed = 0
 			self.alive = False
 			self.update_action(3)
+			if self.char_type == 'Player':
+				self.rect.y -= 1
+			if self.char_type == 'Enemy' and not self.check_death:
+				explode_fx.play()
+				self.check_death = True
 
 
 	def draw(self):
@@ -454,6 +478,7 @@ class World():
 		for tile in self.obstacle_list:
 			tile[1][0] += screen_scroll
 			screen.blit(tile[0], tile[1])
+
 class Exit(pygame.sprite.Sprite):
 	def __init__(self, img, x, y):
 		pygame.sprite.Sprite.__init__(self)
@@ -481,9 +506,11 @@ class ItemBox(pygame.sprite.Sprite):
 			#check what kind of box it was
 			if self.item_type == 'Health':
 				player.health += 25
+				health_fx.play()
 				if player.health > player.max_health:
 					player.health = player.max_health
 			elif self.item_type == 'PowerUp':
+				powerup_fx.play()
 				player.power_up_timer = 300 #300 khung hinh = 5 giay
 			
 			#delete the item box
@@ -522,6 +549,8 @@ class Boss(Characters):
 		self.move_direction = 1  # 1 xuống, -1 lên
 		self.shoot_cooldown = 0
 		self.bullet_cooldown = 60
+		self.sound_death = False
+		self.alive = True
 		
 
 	def move(self):
@@ -544,8 +573,10 @@ class Boss(Characters):
 			self.shoot_cooldown = self.bullet_cooldown  # cooldown thấp, bắn nhanh
 			if random.randint(1,2) == 1: 
 				self.direction *= -1
-			bullet = BossBullet(self.rect.centerx + (0.65 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
+			bullet = BossBullet(self.rect.centerx + (0.75 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
 			bullet_group.add(bullet)
+			shoot_fx.play()
+
 
 	def ai(self):
 		if player.alive and self.alive:
@@ -554,19 +585,29 @@ class Boss(Characters):
 				self.update_action(1)  # 1: run
 				self.rect.x += screen_scroll
 				self.shoot()
-			else:
+			elif self.health >=1 and self.health <= 700:
 				self.bullet_cooldown = 10
-				self.speed = 3
+				self.speed = 5
 				self.move()
 				self.update_action(4)
 				self.rect.x += screen_scroll
 				self.shoot()
+			else:
+				self.alive = False
 
+		if player.alive and not self.alive:
+			self.update_action(3)
+			self.rect.x += screen_scroll
+			self.health = 0
+			
+			if not self.sound_death:
+				explode_fx.play()
+				self.sound_death = True
+				
 		if self.shoot_cooldown > 0:
 			self.shoot_cooldown -= 1  # Giảm shoot_cooldown xuống sau mỗi khung hình
 
-		if self.health <= 0:
-			self.update_action(3)
+		
 
 class Decoration(pygame.sprite.Sprite):
 	def __init__(self, img, x, y):
@@ -606,7 +647,7 @@ class Bullet(pygame.sprite.Sprite):
 		for enemy in enemy_group:
 			if pygame.sprite.spritecollide(enemy, bullet_group, False):
 				if enemy.alive:
-					enemy.health -= 25
+					enemy.health -= 60
 					self.kill()
 
 class PlayerBullet(Bullet):
@@ -624,7 +665,7 @@ class EnemyBullet(Bullet):
 class BossBullet(Bullet):
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
-        self.speed = 8  # Tốc độ đạn của enemy
+        self.speed = 8  # Tốc độ đạn của boss
         image = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/3.png')).convert_alpha()
         self.image = pygame.transform.scale(image, (image.get_width() * 0.55, image.get_height() * 0.55))
 
@@ -664,7 +705,6 @@ run = True
 while run:
 	
 	clock.tick(FPS)
-
 	if star_game == False:
 		#draw menu
 		screen.blit(bg_menu, (0,0))
@@ -749,6 +789,14 @@ while run:
 								world_data[x][y] = int(tile)
 					world = World()
 					player, health_bar = world.process_data(world_data)
+
+					#stop music and play new music
+					
+				if level == 2:
+					pygame.mixer.music.load('assets/audio/boss_music.mp3')
+					pygame.mixer.music.set_volume(0.2)
+					pygame.mixer.music.play(-1, 0.0, 5000)
+
 		else:
 			screen_scroll = 0
 			if restart_button.draw(screen):
@@ -780,6 +828,7 @@ while run:
 				shoot = True
 			if event.key == pygame.K_UP and player.alive:
 				player.jump = True
+				jump_fx.play()
 			if event.key == pygame.K_ESCAPE:
 				run = False
 				
