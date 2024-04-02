@@ -17,7 +17,6 @@ pygame.display.set_caption('Gun&Run')
 pygame.display.set_icon(pygame.image.load('assets/icon.ico'))
 
 
-
 #set framerate
 clock = pygame.time.Clock()
 FPS = 60
@@ -28,13 +27,14 @@ SCROLL_THRESH = 200
 ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 43
+TILE_TYPES = 44
 MAX_LEVELS = 3
 scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
 level = 0
 star_game = False
+enemy_count = 0
 
 
 #define player action variables
@@ -43,11 +43,14 @@ moving_right = False
 shoot = False
 
 #load sounds
-
-pygame.mixer.music.load('assets/audio/level_music.mp3')
-pygame.mixer.music.set_volume(0.2)
-pygame.mixer.music.play(-1, 0.0, 5000)
-
+if level < MAX_LEVELS - 1:
+	pygame.mixer.music.load('assets/audio/level_music.mp3')
+	pygame.mixer.music.set_volume(0.2)
+	pygame.mixer.music.play(-1, 0.0, 5000)
+else:
+	pygame.mixer.music.load('assets/audio/boss_music.mp3')
+	pygame.mixer.music.set_volume(0.1)
+	pygame.mixer.music.play(-1, 0.0, 5000)
 
 
 jump_fx = pygame.mixer.Sound('assets/audio/sfx/jump.wav')
@@ -104,6 +107,9 @@ bg2_img = pygame.transform.scale(bg2_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
 bg1_img_orig = pygame.image.load('assets/Background/1.png').convert_alpha()
 bg1_img = pygame.transform.scale(bg1_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
+# load bullet images
+bullet_img = pygame.image.load('assets/Player/Bullet/0.png').convert_alpha()
+
 #store tiles in a list
 img_list = []
 for x in range(TILE_TYPES):
@@ -111,8 +117,6 @@ for x in range(TILE_TYPES):
 	img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
 	img_list.append(img)
 
-#bullet
-bullet_img = pygame.image.load('assets/Player/Bullet/0.png').convert_alpha()
 
 #define colours
 BG = (144, 201, 120)
@@ -125,7 +129,8 @@ def draw_text(text, font, text_col, x, y):
 	img = font.render(text, True, text_col)
 	screen.blit(img, (x, y))
 
-def draw_bg_0():
+#draw backgrounds 
+def draw_bg_0_to_3():
 	screen.fill(BG)
 	width = bg1_img.get_width()
 	for x in range(5):
@@ -133,9 +138,9 @@ def draw_bg_0():
 		screen.blit(bg2_img, ((x * width) - bg_scroll * 0.35, SCREEN_HEIGHT - bg2_img.get_height() - 10))
 		screen.blit(bg3_img, ((x * width) - bg_scroll * 0.4, SCREEN_HEIGHT - bg3_img.get_height() - 10))
 		screen.blit(bg4_img, ((x * width) - bg_scroll * 0.45, SCREEN_HEIGHT - bg4_img.get_height() - 10))
-		screen.blit(bg5_img, ((x * width) - bg_scroll * 0.5, SCREEN_HEIGHT - bg5_img.get_height() - 10))
+		screen.blit(bg5_img, ((x * width) - bg_scroll * 0.5, SCREEN_HEIGHT - bg5_img.get_height() + 10))
 
-def draw_bg_1():
+def draw_bg_4():
 	screen.fill(BG)
 	width = bg1_img.get_width()
 	for x in range(5):
@@ -143,7 +148,7 @@ def draw_bg_1():
 		screen.blit(bg2_img, ((x * width) - bg_scroll * 0.35, SCREEN_HEIGHT - bg2_img.get_height() - 10))
 		screen.blit(bg3_img, ((x * width) - bg_scroll * 0.4, SCREEN_HEIGHT - bg3_img.get_height() - 10))
 
-def draw_bg_2():
+def draw_bg_5():
 	screen.fill(BG)
 	width = bg1_img.get_width()
 	for x in range(5):
@@ -404,6 +409,8 @@ class Characters(pygame.sprite.Sprite):
 
 
 	def check_alive(self):
+		global enemy_count
+
 		if self.health <= 0:
 			self.health = 0
 			self.speed = 0
@@ -414,6 +421,8 @@ class Characters(pygame.sprite.Sprite):
 			if self.char_type == 'Enemy' and not self.check_death:
 				explode_fx.play()
 				self.check_death = True
+				enemy_count -= 1
+
 
 
 	def draw(self):
@@ -425,6 +434,8 @@ class World():
 		self.obstacle_list = []
 
 	def process_data(self, data):
+		global enemy_count
+
 		self.level_length = len(data[0])
 		#iterate through each value in level data file
 		for y, row in enumerate(data):
@@ -435,7 +446,9 @@ class World():
 					img_rect.x = x * TILE_SIZE
 					img_rect.y = y * TILE_SIZE
 					tile_data = (img, img_rect)
-					if tile >= 0 and tile <= 20:
+
+
+					if tile >= 0 and tile <= 20 or tile == 43:
 						self.obstacle_list.append(tile_data)
 
 					elif tile >= 24 and tile <= 38:
@@ -461,10 +474,12 @@ class World():
 					elif tile == 22:#create enemies
 						enemy = Characters('Enemy', x * TILE_SIZE, y * TILE_SIZE, 1.65, 2)
 						enemy_group.add(enemy)
+						enemy_count += 1
 					
 					elif tile == 21:
 						boss = Boss(x * TILE_SIZE, y * TILE_SIZE, 2, 2)
 						enemy_group.add(boss)
+						enemy_count += 1
 					
 					elif tile == 42:
 						exit = Exit(img, x * TILE_SIZE, y * TILE_SIZE)
@@ -476,8 +491,9 @@ class World():
 
 	def draw(self):
 		for tile in self.obstacle_list:
-			tile[1][0] += screen_scroll
-			screen.blit(tile[0], tile[1])
+			if tile[0] != img_list[43] or enemy_count > 0:
+				tile[1][0] += screen_scroll
+				screen.blit(tile[0], tile[1])
 
 class Exit(pygame.sprite.Sprite):
 	def __init__(self, img, x, y):
@@ -575,10 +591,11 @@ class Boss(Characters):
 				self.direction *= -1
 			bullet = BossBullet(self.rect.centerx + (0.75 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
 			bullet_group.add(bullet)
-			shoot_fx.play()
+			# shoot_fx.play()
 
 
 	def ai(self):
+		global enemy_count
 		if player.alive and self.alive:
 			if self.health > 700:
 				self.move()
@@ -594,6 +611,7 @@ class Boss(Characters):
 				self.shoot()
 			else:
 				self.alive = False
+				enemy_count -= 1
 
 		if player.alive and not self.alive:
 			self.update_action(3)
@@ -647,7 +665,7 @@ class Bullet(pygame.sprite.Sprite):
 		for enemy in enemy_group:
 			if pygame.sprite.spritecollide(enemy, bullet_group, False):
 				if enemy.alive:
-					enemy.health -= 60
+					enemy.health -= 55
 					self.kill()
 
 class PlayerBullet(Bullet):
@@ -703,7 +721,7 @@ player, health_bar = world.process_data(world_data)
 
 run = True
 while run:
-	
+
 	clock.tick(FPS)
 	if star_game == False:
 		#draw menu
@@ -717,12 +735,19 @@ while run:
 	else:
 		#update background
 		if level == 0:
-			draw_bg_0()
+			draw_bg_0_to_3()
+			
 		elif level == 1:
-			draw_bg_1()
+			draw_bg_4()
 		else:
-			draw_bg_2()
+			draw_bg_5()
 
+
+		draw_text(f'Level: {level}', font, WHITE, 200, 15)	
+		if level < MAX_LEVELS - 1:
+			draw_text(f'|   Enemy: {enemy_count}', font, WHITE, 300, 15)
+		
+			
 
 		#draw world map
 		world.draw()
@@ -732,12 +757,13 @@ while run:
 
 		player.update()
 		player.draw()
-
 		for entity in enemy_group:
 			if entity.char_type == 'Boss':
 				entity.ai()
 				entity.update()
 				entity.draw()
+				if level == MAX_LEVELS - 1:
+					draw_text(f'|   Boss\'s Health: {entity.health}', font, WHITE, 300, 15)
 			else:
 				entity.ai()
 				entity.update()
@@ -757,14 +783,15 @@ while run:
 		exit_group.draw(screen)
 
 		#update player actions
+		#player alive
 		if player.alive:
 			#shoot bullets
 			if shoot and moving_left or shoot and moving_right:
 				player.shoot()
-				player.update_action(5)
+				player.update_action(5)#run shoot
 			elif shoot:
 				player.shoot()
-				player.update_action(4)
+				player.update_action(4)#idle shoot
 			elif player.in_air:
 				player.update_action(2)#2: jump
 			elif moving_left or moving_right:
@@ -790,17 +817,20 @@ while run:
 					world = World()
 					player, health_bar = world.process_data(world_data)
 
-					#stop music and play new music
-					
-				if level == 2:
-					pygame.mixer.music.load('assets/audio/boss_music.mp3')
-					pygame.mixer.music.set_volume(0.2)
-					pygame.mixer.music.play(-1, 0.0, 5000)
+					#stop music and play new music when meet boss
+					if level == MAX_LEVELS - 1:
+						pygame.mixer.music.load('assets/audio/boss_music.mp3')
+						pygame.mixer.music.set_volume(0.1)
+						pygame.mixer.music.play(-1, 0.0, 5000)
 
+
+					
+		#player death
 		else:
 			screen_scroll = 0
 			if restart_button.draw(screen):
 				bg_scroll = 0
+				enemy_count = 0
 				world_data = reset_level()
 				#load in level data and create world
 				with open(f'level{level}_data.csv', newline='') as csvfile:
