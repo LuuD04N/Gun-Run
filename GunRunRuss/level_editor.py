@@ -22,7 +22,7 @@ ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 44
-level = 0
+level = 1
 current_tile = 0
 scroll_left = False
 scroll_right = False
@@ -210,7 +210,7 @@ while run:
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_UP:
 				level += 1
-			if event.key == pygame.K_DOWN and level > 0:
+			if event.key == pygame.K_DOWN and level > 1:
 				level -= 1
 			if event.key == pygame.K_LEFT:
 				scroll_left = True

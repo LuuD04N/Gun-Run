@@ -28,13 +28,16 @@ ROWS = 16
 COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 44
-MAX_LEVELS = 3
+MAX_LEVELS = 4
+ENDING_TEXT_SPEED = 2
+
 scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
-level = 0
+level = 1
 star_game = False
 enemy_count = 0
+ending_text_y = SCREEN_HEIGHT  # Khởi tạo vị trí ban đầu
 
 
 #define player action variables
@@ -42,15 +45,6 @@ moving_left = False
 moving_right = False
 shoot = False
 
-#load sounds
-if level < MAX_LEVELS - 1:
-	pygame.mixer.music.load('assets/audio/level_music.mp3')
-	pygame.mixer.music.set_volume(0.2)
-	pygame.mixer.music.play(-1, 0.0, 5000)
-else:
-	pygame.mixer.music.load('assets/audio/boss_music.mp3')
-	pygame.mixer.music.set_volume(0.1)
-	pygame.mixer.music.play(-1, 0.0, 5000)
 
 
 jump_fx = pygame.mixer.Sound('assets/audio/sfx/jump.wav')
@@ -124,6 +118,23 @@ RED = (255, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
+
+def level_music():
+	pygame.mixer.music.load('assets/audio/level_music.mp3')
+	pygame.mixer.music.set_volume(0.2)
+	pygame.mixer.music.play(-1, 0.0, 5000)
+
+def boss_music():
+	pygame.mixer.music.load('assets/audio/boss_music.mp3')
+	pygame.mixer.music.set_volume(0.1)
+	pygame.mixer.music.play(-1, 0.0, 5000)
+
+if level < MAX_LEVELS - 1:
+	level_music()
+elif level == MAX_LEVELS - 1:
+	boss_music()
+else:
+	level_music()
 
 def draw_text(text, font, text_col, x, y):
 	img = font.render(text, True, text_col)
@@ -665,7 +676,7 @@ class Bullet(pygame.sprite.Sprite):
 		for enemy in enemy_group:
 			if pygame.sprite.spritecollide(enemy, bullet_group, False):
 				if enemy.alive:
-					enemy.health -= 55
+					enemy.health -= 550
 					self.kill()
 
 class PlayerBullet(Bullet):
@@ -734,18 +745,27 @@ while run:
 		
 	else:
 		#update background
-		if level == 0:
+		if level == 1:
 			draw_bg_0_to_3()
 			
-		elif level == 1:
+		elif level == 2:
 			draw_bg_4()
 		else:
 			draw_bg_5()
 
 
-		draw_text(f'Level: {level}', font, WHITE, 200, 15)	
+	
 		if level < MAX_LEVELS - 1:
+			draw_text(f'Level: {level}', font, WHITE, 200, 15)	
 			draw_text(f'|   Enemy: {enemy_count}', font, WHITE, 300, 15)
+
+		if level == MAX_LEVELS:
+			ending_text_y -= ENDING_TEXT_SPEED
+			if ending_text_y == SCREEN_HEIGHT // 2:
+				ENDING_TEXT_SPEED = 0		
+			
+			draw_text('Thank for playing', font, WHITE, SCREEN_WIDTH // 2 - 200, ending_text_y)
+		
 		
 			
 
@@ -763,7 +783,7 @@ while run:
 				entity.update()
 				entity.draw()
 				if level == MAX_LEVELS - 1:
-					draw_text(f'|   Boss\'s Health: {entity.health}', font, WHITE, 300, 15)
+					draw_text(f'Boss\'s Health: {entity.health}', font, WHITE, 300, 15)
 			else:
 				entity.ai()
 				entity.update()
@@ -819,10 +839,7 @@ while run:
 
 					#stop music and play new music when meet boss
 					if level == MAX_LEVELS - 1:
-						pygame.mixer.music.load('assets/audio/boss_music.mp3')
-						pygame.mixer.music.set_volume(0.1)
-						pygame.mixer.music.play(-1, 0.0, 5000)
-
+						boss_music()
 
 					
 		#player death
@@ -831,6 +848,11 @@ while run:
 			if restart_button.draw(screen):
 				bg_scroll = 0
 				enemy_count = 0
+				if level == MAX_LEVELS:
+					level = 1
+					star_game = False
+					level_music()
+					
 				world_data = reset_level()
 				#load in level data and create world
 				with open(f'level{level}_data.csv', newline='') as csvfile:
