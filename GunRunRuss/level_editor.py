@@ -64,6 +64,7 @@ load_img = pygame.image.load('assets/Enemy/grunt.png').convert_alpha()
 GREEN = (144, 201, 120)
 WHITE = (255, 255, 255)
 RED = (200, 25, 25)
+BLACK = (0, 0, 0)
 
 #define font
 font = pygame.font.SysFont('Futura', 30)
@@ -170,7 +171,7 @@ while run:
 				
 
 	#draw tile panel and tiles
-	pygame.draw.rect(screen, GREEN, (SCREEN_WIDTH, 0, SIDE_MARGIN, SCREEN_HEIGHT))
+	pygame.draw.rect(screen, BLACK, (SCREEN_WIDTH, 0, SIDE_MARGIN, SCREEN_HEIGHT))
 
 	#choose a tile
 	button_count = 0

@@ -1,1 +1,0 @@
-- bg5_img.get_height()

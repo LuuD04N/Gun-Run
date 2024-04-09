@@ -25,7 +25,7 @@ FPS = 60
 GRAVITY = 0.75
 SCROLL_THRESH = 200
 ROWS = 16
-COLS = 150
+COLS = 150 
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 44
 MAX_LEVELS = 4
@@ -129,12 +129,17 @@ def boss_music():
 	pygame.mixer.music.set_volume(0.1)
 	pygame.mixer.music.play(-1, 0.0, 5000)
 
+def ending_music():
+	pygame.mixer.music.load('assets/audio/ending_music.mp3')
+	pygame.mixer.music.set_volume(0.3)
+	pygame.mixer.music.play(-1, 10.0, 5000)
+
 if level < MAX_LEVELS - 1:
 	level_music()
 elif level == MAX_LEVELS - 1:
 	boss_music()
 else:
-	level_music()
+	ending_music()
 
 def draw_text(text, font, text_col, x, y):
 	img = font.render(text, True, text_col)
@@ -314,10 +319,6 @@ class Characters(pygame.sprite.Sprite):
 			if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
 				dx = 0
 
-		#check for collision with spike
-		if pygame.sprite.spritecollide(self, spike_group, False):
-			self.health = 0
-
 		#update rectangle position
 		self.rect.x += dx
 		self.rect.y += dy
@@ -430,7 +431,7 @@ class Characters(pygame.sprite.Sprite):
 			if self.char_type == 'Player':
 				self.rect.y -= 1
 			if self.char_type == 'Enemy' and not self.check_death:
-				explode_fx.play()
+				pygame.mixer.Channel(0).play(pygame.mixer.Sound('assets/audio/sfx/explode.wav'))
 				self.check_death = True
 				enemy_count -= 1
 
@@ -488,7 +489,7 @@ class World():
 						enemy_count += 1
 					
 					elif tile == 21:
-						boss = Boss(x * TILE_SIZE, y * TILE_SIZE, 2, 2)
+						boss = Boss(x * TILE_SIZE, y * TILE_SIZE, 2, 3)
 						enemy_group.add(boss)
 						enemy_count += 1
 					
@@ -502,7 +503,7 @@ class World():
 
 	def draw(self):
 		for tile in self.obstacle_list:
-			if tile[0] != img_list[43] or enemy_count > 0:
+			if tile[0] != img_list[43] or enemy_count > 0 :
 				tile[1][0] += screen_scroll
 				screen.blit(tile[0], tile[1])
 
@@ -572,7 +573,7 @@ class Spike(pygame.sprite.Sprite):
 class Boss(Characters):
 	def __init__(self, x, y, scale, speed):
 		super().__init__('Boss', x, y, scale, speed)
-		self.health = 1000
+		self.health = 6666
 		self.move_direction = 1  # 1 xuống, -1 lên
 		self.shoot_cooldown = 0
 		self.bullet_cooldown = 60
@@ -602,20 +603,20 @@ class Boss(Characters):
 				self.direction *= -1
 			bullet = BossBullet(self.rect.centerx + (0.75 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
 			bullet_group.add(bullet)
-			# shoot_fx.play()
+			shoot_fx.play()
 
 
 	def ai(self):
 		global enemy_count
 		if player.alive and self.alive:
-			if self.health > 700:
+			if self.health > 5666:
 				self.move()
 				self.update_action(1)  # 1: run
 				self.rect.x += screen_scroll
 				self.shoot()
-			elif self.health >=1 and self.health <= 700:
-				self.bullet_cooldown = 10
-				self.speed = 5
+			elif self.health >=1 and self.health <= 5666:
+				self.bullet_cooldown = 8
+				self.speed = 7
 				self.move()
 				self.update_action(4)
 				self.rect.x += screen_scroll
@@ -625,12 +626,16 @@ class Boss(Characters):
 				enemy_count -= 1
 
 		if player.alive and not self.alive:
-			self.update_action(3)
+			for i in range(3000):
+				self.update_action(3)
+
 			self.rect.x += screen_scroll
 			self.health = 0
 			
 			if not self.sound_death:
-				explode_fx.play()
+				pygame.mixer.Channel(0).play(pygame.mixer.Sound('assets/audio/sfx/explode.wav'))
+				pygame.mixer.Channel(1).play(pygame.mixer.Sound('assets/audio/sfx/boss_death.mp3'))
+
 				self.sound_death = True
 				
 		if self.shoot_cooldown > 0:
@@ -673,10 +678,11 @@ class Bullet(pygame.sprite.Sprite):
 			if player.alive:
 				player.health -= 5
 				self.kill()
+
 		for enemy in enemy_group:
 			if pygame.sprite.spritecollide(enemy, bullet_group, False):
 				if enemy.alive:
-					enemy.health -= 550
+					enemy.health -= 5500
 					self.kill()
 
 class PlayerBullet(Bullet):
@@ -695,7 +701,7 @@ class BossBullet(Bullet):
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
         self.speed = 8  # Tốc độ đạn của boss
-        image = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/3.png')).convert_alpha()
+        image = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/2.png')).convert_alpha()
         self.image = pygame.transform.scale(image, (image.get_width() * 0.55, image.get_height() * 0.55))
 
 #create buttons
@@ -740,6 +746,8 @@ while run:
 		#add buttons
 		if star_button.draw(screen):
 			star_game = True
+			pygame.mixer.Channel(0).play(pygame.mixer.Sound('assets/audio/star_game.wav'))
+
 		if exit_button.draw(screen):
 			run = False
 		
@@ -753,21 +761,12 @@ while run:
 		else:
 			draw_bg_5()
 
-
-	
-		if level < MAX_LEVELS - 1:
-			draw_text(f'Level: {level}', font, WHITE, 200, 15)	
-			draw_text(f'|   Enemy: {enemy_count}', font, WHITE, 300, 15)
-
 		if level == MAX_LEVELS:
 			ending_text_y -= ENDING_TEXT_SPEED
 			if ending_text_y == SCREEN_HEIGHT // 2:
 				ENDING_TEXT_SPEED = 0		
 			
-			draw_text('Thank for playing', font, WHITE, SCREEN_WIDTH // 2 - 200, ending_text_y)
-		
-		
-			
+			draw_text('Thanks for playing', font, WHITE, SCREEN_WIDTH // 2 - 200, ending_text_y)
 
 		#draw world map
 		world.draw()
@@ -783,11 +782,21 @@ while run:
 				entity.update()
 				entity.draw()
 				if level == MAX_LEVELS - 1:
-					draw_text(f'Boss\'s Health: {entity.health}', font, WHITE, 300, 15)
+					draw_text(f'Level: {level}', font, WHITE, 200, 15)	
+					draw_text(f'|   Enemy: {enemy_count}', font, WHITE, 300, 15)
+					draw_text(f'|   Boss\'s Health: {entity.health}', font, WHITE, 440, 15)
+
 			else:
 				entity.ai()
 				entity.update()
 				entity.draw()
+
+				if level < MAX_LEVELS - 1:
+					draw_text(f'Level: {level}', font, WHITE, 200, 15)	
+					draw_text(f'|   Enemy: {enemy_count}', font, WHITE, 300, 15)
+
+		
+
 
 		#update and draw groups
 		bullet_group.update()
@@ -840,6 +849,9 @@ while run:
 					#stop music and play new music when meet boss
 					if level == MAX_LEVELS - 1:
 						boss_music()
+
+					if level == MAX_LEVELS:
+						ending_music()
 
 					
 		#player death
