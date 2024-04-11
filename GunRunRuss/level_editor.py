@@ -23,7 +23,7 @@ MAX_COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 44
 level = 1
-current_tile = 0
+current_tile = 0  
 scroll_left = False
 scroll_right = False
 scroll = 0
@@ -143,6 +143,7 @@ while run:
 
 	draw_text(f'Level: {level}', font, WHITE, 10, SCREEN_HEIGHT + LOWER_MARGIN - 90)
 	draw_text('Press UP or DOWN to change level', font, WHITE, 10, SCREEN_HEIGHT + LOWER_MARGIN - 60)
+	draw_text('RESTART GAME TO LOAD LEVEL !', font, RED, SCREEN_WIDTH - 100, SCREEN_HEIGHT + LOWER_MARGIN - 70)
 
 	#save and load data
 	if save_button.draw(screen):

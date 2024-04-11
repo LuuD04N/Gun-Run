@@ -9,14 +9,14 @@ mixer.init()
 pygame.init()
 
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.72)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Gun&Run')
 pygame.display.set_icon(pygame.image.load('assets/icon.ico'))
 
-
+#--------------------VARIABLES---------------------#
 #set framerate
 clock = pygame.time.Clock()
 FPS = 60
@@ -29,15 +29,27 @@ COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 44
 MAX_LEVELS = 4
-ENDING_TEXT_SPEED = 2
+ENDING_TEXT_SPEED = 1
+ENDING_CRE_TEXT_SPEED = 1
+
+#define colours
+RED = (255, 0, 0)
+WHITE = (255, 255, 255)
+YELLOW = (255, 255, 0)
+GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
 
 scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
 level = 1
-star_game = False
+start_game = False
 enemy_count = 0
-ending_text_y = SCREEN_HEIGHT  # Khởi tạo vị trí ban đầu
+ending_text_y = SCREEN_HEIGHT + 120
+ending_cre_text_y = SCREEN_HEIGHT
+setting = True
+exit_menu = True
+exit_ingame = False
 
 
 #define player action variables
@@ -45,8 +57,7 @@ moving_left = False
 moving_right = False
 shoot = False
 
-
-
+#--------------------IMAGES, FONTS AND SOUNDS---------------------#
 jump_fx = pygame.mixer.Sound('assets/audio/sfx/jump.wav')
 jump_fx.set_volume(0.5)
 shoot_fx = pygame.mixer.Sound('assets/audio/sfx/shot.wav')
@@ -68,6 +79,7 @@ item_boxes = {
 
 #define font
 font = pygame.font.SysFont('Futura', 30)
+font_ending = pygame.font.SysFont('Futura', 70)
 
 #buttons images
 start_img_ori = pygame.image.load('assets/Buttons/Play.png').convert_alpha()
@@ -78,6 +90,9 @@ exit_img = pygame.transform.scale(exit_img_ori, (exit_img_ori.get_width() * 3, e
 
 restart_img_ori = pygame.image.load('assets/Buttons/Restart.png').convert_alpha()
 restart_img = pygame.transform.scale(restart_img_ori, (restart_img_ori.get_width() * 5, restart_img_ori.get_height() * 5))
+
+setting_img_ori = pygame.image.load('assets/Buttons/Settings.png').convert_alpha()
+setting_img = pygame.transform.scale(setting_img_ori, (setting_img_ori.get_width() * 2, setting_img_ori.get_height() * 2))
 
 bg_menu_ori = pygame.image.load('assets/Background/menu_bg.png').convert_alpha()
 bg_menu = pygame.transform.scale(bg_menu_ori, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -112,13 +127,6 @@ for x in range(TILE_TYPES):
 	img_list.append(img)
 
 
-#define colours
-BG = (144, 201, 120)
-RED = (255, 0, 0)
-WHITE = (255, 255, 255)
-GREEN = (0, 255, 0)
-BLACK = (0, 0, 0)
-
 def level_music():
 	pygame.mixer.music.load('assets/audio/level_music.mp3')
 	pygame.mixer.music.set_volume(0.2)
@@ -141,13 +149,16 @@ elif level == MAX_LEVELS - 1:
 else:
 	ending_music()
 
-def draw_text(text, font, text_col, x, y):
-	img = font.render(text, True, text_col)
-	screen.blit(img, (x, y))
+def draw_text(screen, text, font, text_col, x, y):
+    lines = text.split("\n")  # Tách văn bản thành các dòng
+    for i, line in enumerate(lines):
+        img = font.render(line, True, text_col)
+        screen.blit(img, (x, y + i * font.get_linesize()))
+
 
 #draw backgrounds 
 def draw_bg_0_to_3():
-	screen.fill(BG)
+	screen.fill(GREEN)
 	width = bg1_img.get_width()
 	for x in range(5):
 		screen.blit(bg1_img, ((x * width) - bg_scroll * 0.3, 0))
@@ -157,7 +168,7 @@ def draw_bg_0_to_3():
 		screen.blit(bg5_img, ((x * width) - bg_scroll * 0.5, SCREEN_HEIGHT - bg5_img.get_height() + 10))
 
 def draw_bg_4():
-	screen.fill(BG)
+	screen.fill(GREEN)
 	width = bg1_img.get_width()
 	for x in range(5):
 		screen.blit(bg1_img, ((x * width) - bg_scroll * 0.3, 0))
@@ -165,7 +176,7 @@ def draw_bg_4():
 		screen.blit(bg3_img, ((x * width) - bg_scroll * 0.4, SCREEN_HEIGHT - bg3_img.get_height() - 10))
 
 def draw_bg_5():
-	screen.fill(BG)
+	screen.fill(GREEN)
 	width = bg1_img.get_width()
 	for x in range(5):
 		screen.blit(bg1_img, ((x * width) - bg_scroll * 0.3, 0))
@@ -190,8 +201,7 @@ def reset_level():
 
 	return data
 
-
-
+#--------------------CLASSES---------------------#
 class Characters(pygame.sprite.Sprite):
 	def __init__(self, char_type, x, y, scale, speed):
 		pygame.sprite.Sprite.__init__(self)
@@ -332,8 +342,10 @@ class Characters(pygame.sprite.Sprite):
 		#check collision with boss
 		for boss in enemy_group:
 			if boss.char_type == 'Boss' and self.char_type == 'Player':
-				if self.rect.colliderect(boss.rect):
-					self.health -= 0.5  # trừ nửa máu
+				if boss.alive == True:
+					if self.rect.colliderect(boss.rect):
+						self.health -= 0.5  # trừ nửa máu
+
 
 		return screen_scroll, level_complete
 
@@ -704,12 +716,17 @@ class BossBullet(Bullet):
         image = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/2.png')).convert_alpha()
         self.image = pygame.transform.scale(image, (image.get_width() * 0.55, image.get_height() * 0.55))
 
-#create buttons
-star_button = button.Button(SCREEN_WIDTH // 2 - 52, SCREEN_HEIGHT // 2 - 100, start_img, 1)
+
+#--------------------BUTTONS---------------------#
+start_button = button.Button(SCREEN_WIDTH // 2 - 52, SCREEN_HEIGHT // 2 - 100, start_img, 1)
+exit_menu_button = button.Button(SCREEN_WIDTH // 2 - 48, SCREEN_HEIGHT // 2 + 30, exit_img, 1)
 exit_button = button.Button(SCREEN_WIDTH // 2 - 24, SCREEN_HEIGHT // 2 + 30, exit_img, 1)
+
+setting_button = button.Button(SCREEN_WIDTH // 2 + 10, SCREEN_HEIGHT // 2 + 30, setting_img, 1)
 restart_button = button.Button(SCREEN_WIDTH // 2 - 52, SCREEN_HEIGHT // 2 - 100, restart_img, 1)
-		
-#create sprite groups
+
+
+#--------------------GROUPS---------------------#
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 decoration_group = pygame.sprite.Group()
@@ -718,8 +735,7 @@ item_box_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 
 
-
-
+#--------------------CREATE WORLD, LOAD FROM FILE---------------------#
 #create empty tile list
 world_data = []
 for row in range(ROWS):
@@ -734,23 +750,40 @@ with open(f'level{level}_data.csv', newline='') as csvfile:
 world = World()
 player, health_bar = world.process_data(world_data)
 
+def open_file():
+    # Đường dẫn tới file cần mở
+    file_path = "E:\CODE\Python\Git_Game\Gun-Run\GunRunRuss\level_editor.py"
+    # Mở file bằng hệ thống
+    os.system(f"start {file_path}")
 
+#--------------------LOOP GAME---------------------#
 
 run = True
 while run:
 
 	clock.tick(FPS)
-	if star_game == False:
+
+	#--------------------START GAME---------------------#
+	if start_game == False:
 		#draw menu
 		screen.blit(bg_menu, (0,0))
 		#add buttons
-		if star_button.draw(screen):
-			star_game = True
-			pygame.mixer.Channel(0).play(pygame.mixer.Sound('assets/audio/star_game.wav'))
+		if start_button.draw(screen):
+			start_game = True
+			pygame.mixer.Channel(0).play(pygame.mixer.Sound('assets/audio/start_game.wav'))
 
-		if exit_button.draw(screen):
-			run = False
-		
+		if exit_menu == True and exit_ingame == False:
+			if exit_menu_button.draw(screen):
+				run = False
+		elif exit_menu == False and exit_ingame == True:
+			if exit_button.draw(screen):
+				run = False
+
+		if setting == True:
+			if setting_button.draw(screen):
+				open_file()
+
+	#--------------------IN GAME---------------------#
 	else:
 		#update background
 		if level == 1:
@@ -763,10 +796,17 @@ while run:
 
 		if level == MAX_LEVELS:
 			ending_text_y -= ENDING_TEXT_SPEED
-			if ending_text_y == SCREEN_HEIGHT // 2:
-				ENDING_TEXT_SPEED = 0		
+			ending_cre_text_y -= ENDING_CRE_TEXT_SPEED
+			if ending_text_y == SCREEN_HEIGHT // 2- 200:
+				ENDING_TEXT_SPEED = 0	
+			if ending_cre_text_y == SCREEN_HEIGHT // 2 - 100:
+				ENDING_CRE_TEXT_SPEED = 0	
 			
-			draw_text('Thanks for playing', font, WHITE, SCREEN_WIDTH // 2 - 200, ending_text_y)
+			text1 = 'Thanks for playing'
+			text2 = 'CRE: \n 1. anh khoa dzai vaicuk \n 2. luu oc cho vaicuk \n tutoril: codingwithruss \n fuck me'
+			
+			draw_text(screen, text1, font_ending, YELLOW, SCREEN_WIDTH // 2 - 300, ending_text_y)
+			draw_text(screen, text2, font, WHITE, SCREEN_WIDTH // 2 - 300, ending_cre_text_y)
 
 		#draw world map
 		world.draw()
@@ -782,9 +822,11 @@ while run:
 				entity.update()
 				entity.draw()
 				if level == MAX_LEVELS - 1:
-					draw_text(f'Level: {level}', font, WHITE, 200, 15)	
-					draw_text(f'|   Enemy: {enemy_count}', font, WHITE, 300, 15)
-					draw_text(f'|   Boss\'s Health: {entity.health}', font, WHITE, 440, 15)
+					draw_text(screen, f'Level: {level}', font, WHITE, 200, 12)	
+					draw_text(screen, f'|   Enemy: {enemy_count}', font, WHITE, 300, 12)
+					draw_text(screen, f'|   Boss\'s Health: {entity.health}', font, RED, 620, 12)
+					draw_text(screen, f'|  Skill\'s time: {player.power_up_timer}', font, WHITE, 440, 12)
+
 
 			else:
 				entity.ai()
@@ -792,10 +834,10 @@ while run:
 				entity.draw()
 
 				if level < MAX_LEVELS - 1:
-					draw_text(f'Level: {level}', font, WHITE, 200, 15)	
-					draw_text(f'|   Enemy: {enemy_count}', font, WHITE, 300, 15)
+					draw_text(screen, f'Level: {level}', font, WHITE, 200, 12)	
+					draw_text(screen, f'|   Enemy: {enemy_count}', font, WHITE, 300, 12)
+					draw_text(screen, f'|  Skill\'s time: {player.power_up_timer}', font, WHITE, 440, 12)
 
-		
 
 
 		#update and draw groups
@@ -811,10 +853,10 @@ while run:
 		item_box_group.draw(screen)
 		exit_group.draw(screen)
 
+		#--------------------IF PLAYER ALIVE---------------------#
 		#update player actions
-		#player alive
 		if player.alive:
-			#shoot bullets
+			#shoot bullets   
 			if shoot and moving_left or shoot and moving_right:
 				player.shoot()
 				player.update_action(5)#run shoot
@@ -846,7 +888,7 @@ while run:
 					world = World()
 					player, health_bar = world.process_data(world_data)
 
-					#stop music and play new music when meet boss
+					#stop music and play new music in new levels
 					if level == MAX_LEVELS - 1:
 						boss_music()
 
@@ -854,7 +896,7 @@ while run:
 						ending_music()
 
 					
-		#player death
+		#--------------------IF PLAYER DIE---------------------#
 		else:
 			screen_scroll = 0
 			if restart_button.draw(screen):
@@ -862,7 +904,7 @@ while run:
 				enemy_count = 0
 				if level == MAX_LEVELS:
 					level = 1
-					star_game = False
+					start_game = False
 					level_music()
 					
 				world_data = reset_level()
@@ -877,7 +919,7 @@ while run:
 			elif exit_button.draw(screen):
 				run = False
 
-
+	#--------------------KEY ACTIONS---------------------#
 	for event in pygame.event.get():
 		#quit game
 		if event.type == pygame.QUIT:
@@ -894,7 +936,13 @@ while run:
 				player.jump = True
 				jump_fx.play()
 			if event.key == pygame.K_ESCAPE:
-				run = False
+				if start_game == True:
+					start_game = False
+					setting = False
+					exit_menu = False 
+					exit_ingame = True
+				else:
+					run = False
 				
 		#keyboard button released
 		if event.type == pygame.KEYUP:
