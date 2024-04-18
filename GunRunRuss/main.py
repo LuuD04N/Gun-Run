@@ -7,21 +7,14 @@ import button
 
 mixer.init()
 pygame.init()
-
-
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.72)
-
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption('Gun&Run')
-pygame.display.set_icon(pygame.image.load('assets/icon.ico'))
-
 #--------------------VARIABLES---------------------#
 #set framerate
 clock = pygame.time.Clock()
 FPS = 60
 
 #define game variables
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.72)
 GRAVITY = 0.75
 SCROLL_THRESH = 200
 ROWS = 16
@@ -42,7 +35,7 @@ BLACK = (0, 0, 0)
 scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
-level = 7
+level = 1
 start_game = False
 enemy_count = 0
 ending_text_y = SCREEN_HEIGHT + 120
@@ -52,12 +45,18 @@ exit_menu = True
 exit_ingame = False
 hint_check = False
 hint_count = 0
-play_count = 1
+play_count = 0
 
 #define player action variables
 moving_left = False
 moving_right = False
 shoot = False
+
+#--------------------SCREEN---------------------#
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption('Gun&Run')
+pygame.display.set_icon(pygame.image.load('assets/icon.ico'))
 
 #--------------------IMAGES, FONTS AND SOUNDS---------------------#
 jump_fx = pygame.mixer.Sound('assets/audio/sfx/jump.wav')
@@ -97,9 +96,6 @@ restart_img = pygame.transform.scale(restart_img_ori, (restart_img_ori.get_width
 
 setting_img_ori = pygame.image.load('assets/Buttons/Settings.png').convert_alpha()
 setting_img = pygame.transform.scale(setting_img_ori, (setting_img_ori.get_width() * 2, setting_img_ori.get_height() * 2))
-  
-bg_menu_ori = pygame.image.load('assets/Background/menu_bg.png').convert_alpha()
-bg_menu = pygame.transform.scale(bg_menu_ori, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
 #load background images 
 bg6_img_orig = pygame.image.load('assets/Background/6.png').convert_alpha()
@@ -120,8 +116,13 @@ bg2_img = pygame.transform.scale(bg2_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
 bg1_img_orig = pygame.image.load('assets/Background/1.png').convert_alpha()
 bg1_img = pygame.transform.scale(bg1_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
+bg_menu_ori = pygame.image.load('assets/Background/menu_bg.png').convert_alpha()
+bg_menu = pygame.transform.scale(bg_menu_ori, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
 # load bullet images
 bullet_img = pygame.image.load('assets/Player/Bullet/0.png').convert_alpha()
+boss_bullet_img = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/2.png')).convert_alpha()
+enemy_bullet_img = pygame.transform.scale2x(pygame.image.load('assets/Enemy/Bullet/0.png')).convert_alpha()
 
 #store tiles in a list
 img_list = []
@@ -154,11 +155,10 @@ else:
 	ending_music()
 
 def draw_text(screen, text, font, text_col, x, y):
-    lines = text.split("\n")  # Tách văn bản thành các dòng
+    lines = text.split("\n")  #split text if " endl "
     for i, line in enumerate(lines):
         img = font.render(line, True, text_col)
         screen.blit(img, (x, y + i * font.get_linesize()))
-
 
 #draw backgrounds 
 def draw_bg_1_to_3():
@@ -186,8 +186,6 @@ def draw_bg_6_to_7():
 		screen.blit(bg1_img, ((x * width) - bg_scroll * 0.3, 0))
 		screen.blit(bg2_img, ((x * width) - bg_scroll * 0.35, SCREEN_HEIGHT - bg2_img.get_height() - 10))
 		
-
-
 #function to reset level
 def reset_level():
 	enemy_group.empty()
@@ -351,10 +349,7 @@ class Characters(pygame.sprite.Sprite):
 					if self.rect.colliderect(boss.rect):
 						self.health -= 0.5  # trừ nửa máu
 
-
 		return screen_scroll, level_complete
-
-
 
 	def shoot(self):
 		if self.shoot_cooldown == 0:
@@ -382,7 +377,6 @@ class Characters(pygame.sprite.Sprite):
 				#stop running and face the player
 				self.shoot()
 				self.update_action(4)
-				
 			else:
 				if self.idling == False:
 					if self.direction == 1:
@@ -404,7 +398,6 @@ class Characters(pygame.sprite.Sprite):
 					self.idling_counter -= 1
 					if self.idling_counter <= 0:
 						self.idling = False
-
 		#scroll
 		self.rect.x += screen_scroll
 
@@ -671,6 +664,7 @@ class Boss(Characters):
 
 	def ai(self):
 		global enemy_count
+		#when boss alive
 		if player.alive and self.alive:
 			if self.health > 1500:
 				self.move()
@@ -752,19 +746,19 @@ class PlayerBullet(Bullet):
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
         self.speed = 10  # Tốc độ đạn của player
-        self.image = pygame.transform.scale2x(pygame.image.load('assets/Player/Bullet/0.png')).convert_alpha()
+        self.image = pygame.transform.scale2x(bullet_img).convert_alpha()
 
 class EnemyBullet(Bullet):
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
         self.speed = 8  # Tốc độ đạn của enemy
-        self.image = pygame.transform.scale2x(pygame.image.load('assets/Enemy/Bullet/0.png')).convert_alpha()
+        self.image = enemy_bullet_img
 
 class BossBullet(Bullet):
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
         self.speed = 8  # Tốc độ đạn của boss
-        image = pygame.transform.scale2x(pygame.image.load('assets/Boss/Bullet/2.png')).convert_alpha()
+        image = boss_bullet_img
         self.image = pygame.transform.scale(image, (image.get_width() * 0.55, image.get_height() * 0.55))
 
 
@@ -874,6 +868,7 @@ while run:
 
 		player.update()
 		player.draw()
+		
 		for entity in enemy_group:
 			if entity.char_type == 'Boss':
 				entity.ai()

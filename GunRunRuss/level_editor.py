@@ -16,7 +16,6 @@ SIDE_MARGIN = 300
 screen = pygame.display.set_mode((SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN))
 pygame.display.set_caption('Level Editor')
 
-
 #define game variables
 ROWS = 16
 MAX_COLS = 150
@@ -28,7 +27,33 @@ scroll_left = False
 scroll_right = False
 scroll = 0
 scroll_speed = 1
+#define colours
+GREEN = (144, 201, 120)
+WHITE = (255, 255, 255)
+RED = (200, 25, 25)
+BLACK = (0, 0, 0)
 
+#store tiles in a list
+img_list = []
+for x in range(TILE_TYPES):
+	img = pygame.image.load(f'assets/Tilemap/{x}.png').convert_alpha()
+	img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+	img_list.append(img)
+
+save_img = pygame.image.load('assets/Player/john_static.png').convert_alpha()
+load_img = pygame.image.load('assets/Enemy/grunt.png').convert_alpha()
+
+#define font
+font = pygame.font.SysFont('Futura', 30)
+
+#create buttons
+save_button = button.Button(SCREEN_WIDTH // 2, SCREEN_HEIGHT + LOWER_MARGIN - 50, save_img, 1)
+load_button = button.Button(SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT + LOWER_MARGIN - 50, load_img, 1)
+
+#make a button list
+button_list = []
+button_col = 0
+button_row = 0
 
 #load images
 bg6_img_orig = pygame.image.load('assets/Background/6.png').convert_alpha()
@@ -49,26 +74,6 @@ bg2_img = pygame.transform.scale(bg2_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
 bg1_img_orig = pygame.image.load('assets/Background/1.png').convert_alpha()
 bg1_img = pygame.transform.scale(bg1_img_orig, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-#store tiles in a list
-img_list = []
-for x in range(TILE_TYPES):
-	img = pygame.image.load(f'assets/Tilemap/{x}.png').convert_alpha()
-	img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
-	img_list.append(img)
-
-save_img = pygame.image.load('assets/Player/john_static.png').convert_alpha()
-load_img = pygame.image.load('assets/Enemy/grunt.png').convert_alpha()
-
-
-#define colours
-GREEN = (144, 201, 120)
-WHITE = (255, 255, 255)
-RED = (200, 25, 25)
-BLACK = (0, 0, 0)
-
-#define font
-font = pygame.font.SysFont('Futura', 30)
-
 #create empty tile list
 world_data = []
 for row in range(ROWS):
@@ -79,12 +84,10 @@ for row in range(ROWS):
 for tile in range(0, MAX_COLS):
 	world_data[ROWS - 1][tile] = 0
 
-
 #function for outputting text onto the screen
 def draw_text(text, font, text_col, x, y):
 	img = font.render(text, True, text_col)
 	screen.blit(img, (x, y))
-
 
 #create function for drawing background
 def draw_bg():
@@ -106,7 +109,6 @@ def draw_grid():
 	for c in range(ROWS + 1):
 		pygame.draw.line(screen, WHITE, (0, c * TILE_SIZE), (SCREEN_WIDTH, c * TILE_SIZE))
 
-
 #function for drawing the world tiles
 def draw_world():
 	for y, row in enumerate(world_data):
@@ -114,15 +116,6 @@ def draw_world():
 			if tile >= 0:
 				screen.blit(img_list[tile], (x * TILE_SIZE - scroll, y * TILE_SIZE))
 
-
-
-#create buttons
-save_button = button.Button(SCREEN_WIDTH // 2, SCREEN_HEIGHT + LOWER_MARGIN - 50, save_img, 1)
-load_button = button.Button(SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT + LOWER_MARGIN - 50, load_img, 1)
-#make a button list
-button_list = []
-button_col = 0
-button_row = 0
 for i in range(len(img_list)):
 	tile_button = button.Button(SCREEN_WIDTH + (50 * button_col) + 50, 50 * button_row + 50, img_list[i], 1)
 	button_list.append(tile_button)
@@ -130,7 +123,6 @@ for i in range(len(img_list)):
 	if button_col == 5:
 		button_row += 1
 		button_col = 0
-
 
 run = True
 while run:
