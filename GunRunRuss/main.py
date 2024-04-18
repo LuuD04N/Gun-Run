@@ -27,8 +27,8 @@ SCROLL_THRESH = 200
 ROWS = 16
 COLS = 150 
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 44
-MAX_LEVELS = 4
+TILE_TYPES = 45
+MAX_LEVELS = 7
 ENDING_TEXT_SPEED = 1
 ENDING_CRE_TEXT_SPEED = 1
 
@@ -42,7 +42,7 @@ BLACK = (0, 0, 0)
 scale_tamban = 1.5
 screen_scroll = 0
 bg_scroll = 0
-level = 1
+level = 7
 start_game = False
 enemy_count = 0
 ending_text_y = SCREEN_HEIGHT + 120
@@ -50,7 +50,9 @@ ending_cre_text_y = SCREEN_HEIGHT
 setting = True
 exit_menu = True
 exit_ingame = False
-
+hint_check = False
+hint_count = 0
+play_count = 1
 
 #define player action variables
 moving_left = False
@@ -68,6 +70,8 @@ powerup_fx = pygame.mixer.Sound('assets/audio/sfx/powerup.wav')
 powerup_fx.set_volume(3)
 explode_fx = pygame.mixer.Sound('assets/audio/sfx/explode.wav')
 explode_fx.set_volume(3)
+death_fx = pygame.mixer.Sound('assets/audio/sfx/death_sound.WAV')
+death_fx.set_volume(3)
 
 #pick up boxes
 health_box_img = pygame.image.load('assets/Tilemap/39.png').convert_alpha()
@@ -93,7 +97,7 @@ restart_img = pygame.transform.scale(restart_img_ori, (restart_img_ori.get_width
 
 setting_img_ori = pygame.image.load('assets/Buttons/Settings.png').convert_alpha()
 setting_img = pygame.transform.scale(setting_img_ori, (setting_img_ori.get_width() * 2, setting_img_ori.get_height() * 2))
-
+  
 bg_menu_ori = pygame.image.load('assets/Background/menu_bg.png').convert_alpha()
 bg_menu = pygame.transform.scale(bg_menu_ori, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
@@ -157,7 +161,7 @@ def draw_text(screen, text, font, text_col, x, y):
 
 
 #draw backgrounds 
-def draw_bg_0_to_3():
+def draw_bg_1_to_3():
 	screen.fill(GREEN)
 	width = bg1_img.get_width()
 	for x in range(5):
@@ -167,7 +171,7 @@ def draw_bg_0_to_3():
 		screen.blit(bg4_img, ((x * width) - bg_scroll * 0.45, SCREEN_HEIGHT - bg4_img.get_height() - 10))
 		screen.blit(bg5_img, ((x * width) - bg_scroll * 0.5, SCREEN_HEIGHT - bg5_img.get_height() + 10))
 
-def draw_bg_4():
+def draw_bg_4_to_5():
 	screen.fill(GREEN)
 	width = bg1_img.get_width()
 	for x in range(5):
@@ -175,7 +179,7 @@ def draw_bg_4():
 		screen.blit(bg2_img, ((x * width) - bg_scroll * 0.35, SCREEN_HEIGHT - bg2_img.get_height() - 10))
 		screen.blit(bg3_img, ((x * width) - bg_scroll * 0.4, SCREEN_HEIGHT - bg3_img.get_height() - 10))
 
-def draw_bg_5():
+def draw_bg_6_to_7():
 	screen.fill(GREEN)
 	width = bg1_img.get_width()
 	for x in range(5):
@@ -192,6 +196,7 @@ def reset_level():
 	item_box_group.empty()
 	decoration_group.empty()
 	exit_group.empty()
+	hint_group.empty()
 
 	#create empty tile list
 	data = []
@@ -440,8 +445,14 @@ class Characters(pygame.sprite.Sprite):
 			self.speed = 0
 			self.alive = False
 			self.update_action(3)
+
+			if self.char_type == 'Player' and not self.check_death:
+				death_fx.play()
+				self.check_death = True
+
 			if self.char_type == 'Player':
 				self.rect.y -= 1
+
 			if self.char_type == 'Enemy' and not self.check_death:
 				pygame.mixer.Channel(0).play(pygame.mixer.Sound('assets/audio/sfx/explode.wav'))
 				self.check_death = True
@@ -509,6 +520,9 @@ class World():
 						exit = Exit(img, x * TILE_SIZE, y * TILE_SIZE)
 						exit_group.add(exit)
 
+					elif tile == 44:
+						hint = Hint(img, x * TILE_SIZE, y * TILE_SIZE)
+						hint_group.add(hint)
 
 		return player, health_bar
 
@@ -571,7 +585,44 @@ class HealthBar():
 		pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
 		pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
 		pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
-  
+
+class Hint(pygame.sprite.Sprite):
+	def __init__(self, img, x, y):
+		pygame.sprite.Sprite.__init__(self)
+		self.image = img
+		self.rect = self.image.get_rect()
+		self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+	
+	def update(self):
+		global hint_count
+		self.rect.x += screen_scroll
+		if pygame.sprite.collide_rect(self, player):
+			hint_check = True
+			hint_count += 1
+			if hint_count > 0:
+				if level == 1:
+					if hint_check and hint_count >= 1 and hint_count <= 100:
+						draw_text(screen, 'Press < > to move left and right, press ^ to jump', font, WHITE, 300, 300)	
+				
+					if hint_check and hint_count >= 101 and hint_count <= 200:
+						draw_text(screen, 'Try to shoot by press SPACE', font, WHITE, 500, 300)	
+
+					if hint_check and hint_count >= 201 and hint_count <= 400:
+						draw_text(screen, 'Pass through those HEARTS to heal \n\n    Those POWER BOX to power up', font, WHITE, 350, 400)
+				elif level == 2:
+					if hint_check and hint_count >= 1 and hint_count <= 200:
+						draw_text(screen, 'See that SPIKE? touch it if you want to see GODS', font ,WHITE, 300, 300)
+				elif level == 4:
+					if hint_check and hint_count >= 1 and hint_count <= 200:
+						draw_text(screen, 'Keep going, the GREATEST mystery await you at the end', font, WHITE, 400, 150)
+				elif level == 6:
+					if hint_check and hint_count >=1 and hint_count <= 200:
+						draw_text(screen, 'OMG, a big SKULL! Can you defeat it?', font, WHITE, 500, 300)	
+
+			if hint_count >= 401:
+				hint_count = 0
+
+			
 class Spike(pygame.sprite.Sprite):
 	def __init__(self, img, x, y):
 		pygame.sprite.Sprite.__init__(self)
@@ -585,7 +636,7 @@ class Spike(pygame.sprite.Sprite):
 class Boss(Characters):
 	def __init__(self, x, y, scale, speed):
 		super().__init__('Boss', x, y, scale, speed)
-		self.health = 6666
+		self.health = 2000
 		self.move_direction = 1  # 1 xuống, -1 lên
 		self.shoot_cooldown = 0
 		self.bullet_cooldown = 60
@@ -621,14 +672,14 @@ class Boss(Characters):
 	def ai(self):
 		global enemy_count
 		if player.alive and self.alive:
-			if self.health > 5666:
+			if self.health > 1500:
 				self.move()
 				self.update_action(1)  # 1: run
 				self.rect.x += screen_scroll
 				self.shoot()
-			elif self.health >=1 and self.health <= 5666:
-				self.bullet_cooldown = 8
-				self.speed = 7
+			elif self.health >=1 and self.health <= 1500:
+				self.bullet_cooldown = 6
+				self.speed = 6
 				self.move()
 				self.update_action(4)
 				self.rect.x += screen_scroll
@@ -636,10 +687,10 @@ class Boss(Characters):
 			else:
 				self.alive = False
 				enemy_count -= 1
-
+		
+		#when boss die
 		if player.alive and not self.alive:
-			for i in range(3000):
-				self.update_action(3)
+			self.update_action(3)
 
 			self.rect.x += screen_scroll
 			self.health = 0
@@ -694,7 +745,7 @@ class Bullet(pygame.sprite.Sprite):
 		for enemy in enemy_group:
 			if pygame.sprite.spritecollide(enemy, bullet_group, False):
 				if enemy.alive:
-					enemy.health -= 5500
+					enemy.health -= 55
 					self.kill()
 
 class PlayerBullet(Bullet):
@@ -733,6 +784,7 @@ decoration_group = pygame.sprite.Group()
 spike_group = pygame.sprite.Group()
 item_box_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
+hint_group = pygame.sprite.Group()
 
 
 #--------------------CREATE WORLD, LOAD FROM FILE---------------------#
@@ -741,6 +793,7 @@ world_data = []
 for row in range(ROWS):
 	r = [-1] * COLS
 	world_data.append(r)
+	
 #load in level data and create world
 with open(f'level{level}_data.csv', newline='') as csvfile:
 	reader = csv.reader(csvfile, delimiter=',')
@@ -751,9 +804,7 @@ world = World()
 player, health_bar = world.process_data(world_data)
 
 def open_file():
-    # Đường dẫn tới file cần mở
     file_path = "E:\CODE\Python\Git_Game\Gun-Run\GunRunRuss\level_editor.py"
-    # Mở file bằng hệ thống
     os.system(f"start {file_path}")
 
 #--------------------LOOP GAME---------------------#
@@ -786,13 +837,13 @@ while run:
 	#--------------------IN GAME---------------------#
 	else:
 		#update background
-		if level == 1:
-			draw_bg_0_to_3()
+		if level >= 1 and level <= 3:
+			draw_bg_1_to_3()
 			
-		elif level == 2:
-			draw_bg_4()
+		elif level >= 4 and level <= 5:
+			draw_bg_4_to_5()
 		else:
-			draw_bg_5()
+			draw_bg_6_to_7()
 
 		if level == MAX_LEVELS:
 			ending_text_y -= ENDING_TEXT_SPEED
@@ -803,10 +854,17 @@ while run:
 				ENDING_CRE_TEXT_SPEED = 0	
 			
 			text1 = 'Thanks for playing'
-			text2 = 'CRE: \n 1. anh khoa dzai vaicuk \n 2. luu oc cho vaicuk \n tutoril: codingwithruss \n fuck me'
+			text2 = 'CRE by: \n 1. Dang Khoa \n 2. Phong Luu'
 			
 			draw_text(screen, text1, font_ending, YELLOW, SCREEN_WIDTH // 2 - 300, ending_text_y)
 			draw_text(screen, text2, font, WHITE, SCREEN_WIDTH // 2 - 300, ending_cre_text_y)
+			if play_count == 0:
+				draw_text(screen, f'\n\n\n\nCongratulations! {play_count} death, ON POINT!', font,  WHITE, SCREEN_WIDTH // 2 - 300, ending_cre_text_y)	
+			elif play_count == 1:
+				draw_text(screen, f'\n\n\n\nCongratulations! {play_count} death, very good!', font,  WHITE, SCREEN_WIDTH // 2 - 300, ending_cre_text_y)	
+			else:
+				draw_text(screen, f'\n\n\n\nCongratulations! {play_count} deaths, not bad!.', font, WHITE, SCREEN_WIDTH // 2 - 300, ending_cre_text_y)	
+
 
 		#draw world map
 		world.draw()
@@ -824,9 +882,9 @@ while run:
 				if level == MAX_LEVELS - 1:
 					draw_text(screen, f'Level: {level}', font, WHITE, 200, 12)	
 					draw_text(screen, f'|   Enemy: {enemy_count}', font, WHITE, 300, 12)
-					draw_text(screen, f'|   Boss\'s Health: {entity.health}', font, RED, 620, 12)
+					draw_text(screen, f'|   Boss\'s Health: {entity.health}', font, YELLOW, 750, 12)
 					draw_text(screen, f'|  Skill\'s time: {player.power_up_timer}', font, WHITE, 440, 12)
-
+					draw_text(screen, f'|  Deaths: {play_count}', font, WHITE, 620, 12)	
 
 			else:
 				entity.ai()
@@ -837,7 +895,7 @@ while run:
 					draw_text(screen, f'Level: {level}', font, WHITE, 200, 12)	
 					draw_text(screen, f'|   Enemy: {enemy_count}', font, WHITE, 300, 12)
 					draw_text(screen, f'|  Skill\'s time: {player.power_up_timer}', font, WHITE, 440, 12)
-
+					draw_text(screen, f'|  Deaths: {play_count}', font, WHITE, 620, 12)	
 
 
 		#update and draw groups
@@ -846,12 +904,14 @@ while run:
 		spike_group.update()
 		item_box_group.update()	
 		exit_group.update()
+		hint_group.update()
 	
 		bullet_group.draw(screen)
 		decoration_group.draw(screen)
 		spike_group.draw(screen)
 		item_box_group.draw(screen)
 		exit_group.draw(screen)
+		hint_group.draw(screen)
 
 		#--------------------IF PLAYER ALIVE---------------------#
 		#update player actions
@@ -859,10 +919,10 @@ while run:
 			#shoot bullets   
 			if shoot and moving_left or shoot and moving_right:
 				player.shoot()
-				player.update_action(5)#run shoot
+				player.update_action(5)#5: run shoot
 			elif shoot:
 				player.shoot()
-				player.update_action(4)#idle shoot
+				player.update_action(4)#4: idle shoot
 			elif player.in_air:
 				player.update_action(2)#2: jump
 			elif moving_left or moving_right:
@@ -875,10 +935,11 @@ while run:
 
 			#check if player has completed the level
 			if level_complete:
-				level += 1
-				bg_scroll = 0
-				world_data = reset_level()
-				if level <= MAX_LEVELS:
+				
+				if level <= MAX_LEVELS - 1:
+					level += 1
+					bg_scroll = 0
+					world_data = reset_level()
 					#load in level data and create world
 					with open(f'level{level}_data.csv', newline='') as csvfile:
 						reader = csv.reader(csvfile, delimiter=',')
@@ -894,6 +955,10 @@ while run:
 
 					if level == MAX_LEVELS:
 						ending_music()
+				else:
+					draw_text(screen, 'Kill yourself!', font, RED, SCREEN_WIDTH // 2 + 200, ending_cre_text_y)
+
+
 
 					
 		#--------------------IF PLAYER DIE---------------------#
@@ -902,9 +967,11 @@ while run:
 			if restart_button.draw(screen):
 				bg_scroll = 0
 				enemy_count = 0
+				play_count += 1
 				if level == MAX_LEVELS:
 					level = 1
 					start_game = False
+					play_count = 0
 					level_music()
 					
 				world_data = reset_level()
@@ -916,6 +983,7 @@ while run:
 							world_data[x][y] = int(tile)
 				world = World()
 				player, health_bar = world.process_data(world_data)
+
 			elif exit_button.draw(screen):
 				run = False
 
